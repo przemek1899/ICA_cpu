@@ -18,7 +18,7 @@ __global__ void pca_gpu(float* tab, int n){
 
 }
 
-void runPCA(data_type * data){
+void runPCA(nifti_data_type * data, int xyzv){
 
 	checkCudaErrors(cudaSetDevice(0));
 
@@ -27,12 +27,12 @@ void runPCA(data_type * data){
 	cusolverDnCreate(&handle); //sprawdzac checkCudaErrors
 
 	//allocate memory
-    //checkCudaErrors(cudaMalloc(&dev_A, m*n*sizeof(float)));
-    //checkCudaErrors(cudaMalloc(&dev_C, m*m*sizeof(float)));
-	/*
+	nifti_data_type * dev_A;
+    checkCudaErrors(cudaMalloc(&dev_A, xyzv*sizeof(nifti_data_type)));
+    
 	// copy data from cpu to gpu memory
-    checkCudaErrors(cudaMemcpy(dev_A, A, m*n*sizeof(float), cudaMemcpyHostToDevice));
-	*/
+    checkCudaErrors(cudaMemcpy(dev_A, data, xyzv*sizeof(nifti_data_type), cudaMemcpyHostToDevice));
+	
 
 	cudaEvent_t start, stop;
 	float elapsedTime;
@@ -51,15 +51,11 @@ void runPCA(data_type * data){
 	checkCudaErrors(cudaEventDestroy(start));
 	checkCudaErrors(cudaEventDestroy(stop));
 
-	
-	//float * c;
-	//c = (float *) malloc(m*n*sizeof(float));
-
 	//copy results from gpu memory to cpu
 	//checkCudaErrors(cudaMemcpy(c, dev_A, m*n*sizeof(float), cudaMemcpyDeviceToHost));
 	
 	//free gpu memory
-	//checkCudaErrors(cudaFree(dev_A));
+	checkCudaErrors(cudaFree(dev_A));
 	checkCudaErrors(cudaDeviceReset()); // dla debuggera
 	//free(c);
 	

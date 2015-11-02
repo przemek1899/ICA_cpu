@@ -2,8 +2,8 @@
 #ifndef PCA_H
 #define PCA_H
 
-typedef float data_type;
+typedef float nifti_data_type;
 
-void runPCA(data_type* data);
+void runPCA(nifti_data_type* data, int xyzv);
 
 #endif

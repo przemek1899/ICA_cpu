@@ -18,7 +18,7 @@ int main(){
 	signed short *bf = (signed short *) buffer;
 	FslGetDim(fslio, &x, &y, &z, &v);
 	int nvol = x*y*z*v;
-	float *data = (float *) malloc(sizeof(float)*nvol);
+	nifti_data_type *data = (nifti_data_type *) malloc(sizeof(nifti_data_type)*nvol);
 	//petla do przemyslania - moze na gpu?
 	int i;
 	for(i=0; i<nvol; i++){
@@ -33,12 +33,12 @@ int main(){
 	sdkCreateTimer(&timer);
 	sdkStartTimer(&timer);*/
 	
-	runPCA();
+	runPCA(data);
 
 	//sdkStopTimer(&timer);
 	//printf("Processing time: %f ms\n", sdkGetTimerValue(&timer));
 	//sdkDeleteTimer(&timer);
 
-	free(data);
+	free(data, nvol);
 	return 0;
 }
