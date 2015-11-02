@@ -8,7 +8,6 @@
 #include "helper_cuda.h"
 #include "device_launch_parameters.h"
 #include "cusolverDn.h"
-#include "datatype.h"
 
 __global__ void pca_gpu(float* tab, int n){
 
