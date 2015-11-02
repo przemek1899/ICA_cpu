@@ -1,9 +1,8 @@
 //#include "helper_timer.h"
 #include "pca.cuh"
 #include <fslio.h>
+#include "datatype.h"
 	
-
-
 
 int main(){
 

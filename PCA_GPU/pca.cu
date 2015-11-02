@@ -8,6 +8,9 @@
 #include "helper_cuda.h"
 #include "device_launch_parameters.h"
 #include "cusolverDn.h"
+#include "datatype.h"
+
+typedef float data_type;
 
 __global__ void pca_gpu(float* tab, int n){
 
@@ -18,7 +21,7 @@ __global__ void pca_gpu(float* tab, int n){
 
 }
 
-void runPCA(void){
+void runPCA(data_type * data){
 
 	checkCudaErrors(cudaSetDevice(0));
 
@@ -26,9 +29,6 @@ void runPCA(void){
 	cusolverDnHandle_t handle = NULL;
 	cusolverDnCreate(&handle); //sprawdzac checkCudaErrors
 
-	int m = 64;
-	int n = 64;
-	float *dev_A;
 	//allocate memory
     //checkCudaErrors(cudaMalloc(&dev_A, m*n*sizeof(float)));
     //checkCudaErrors(cudaMalloc(&dev_C, m*m*sizeof(float)));
