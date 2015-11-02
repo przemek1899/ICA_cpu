@@ -8,7 +8,7 @@
 #include "helper_cuda.h"
 #include "device_launch_parameters.h"
 
-__global__ void pca_gpu(int* tab, int n){
+__global__ void pca_gpu(float* tab, int n){
 
 	int i = blockIdx.x * blockDim.x + threadIdx.x;
 	if (i < n){
@@ -49,7 +49,8 @@ void runPCA(void){
 	checkCudaErrors(cudaEventDestroy(stop));
 
 	
-	float * c = malloc(m*n*sizeof(float));
+	float * c;
+	c = malloc(m*n*sizeof(float));
 
 	//copy results from gpu memory to cpu
 	checkCudaErrors(cudaMemcpy(c, dev_A, m*n*sizeof(float), cudaMemcpyDeviceToHost));
