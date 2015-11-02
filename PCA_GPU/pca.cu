@@ -39,7 +39,7 @@ void runPCA(void){
 	checkCudaErrors(cudaEventRecord(start, 0));
 
 	// call kernel function here
-	pca_gpu<<<64, 64>>>(&dev_A, m*n);
+	pca_gpu<<<64, 64>>>(dev_A, m*n);
 
 	checkCudaErrors(cudaGetLastError());
 	checkCudaErrors(cudaEventRecord(stop, 0));
@@ -50,7 +50,7 @@ void runPCA(void){
 
 	
 	float * c;
-	c = malloc(m*n*sizeof(float));
+	c = (float *) malloc(m*n*sizeof(float));
 
 	//copy results from gpu memory to cpu
 	checkCudaErrors(cudaMemcpy(c, dev_A, m*n*sizeof(float), cudaMemcpyDeviceToHost));
