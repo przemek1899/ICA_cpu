@@ -10,8 +10,6 @@
 #include "cusolverDn.h"
 #include "datatype.h"
 
-typedef float data_type;
-
 __global__ void pca_gpu(float* tab, int n){
 
 	int i = blockIdx.x * blockDim.x + threadIdx.x;
