@@ -8,6 +8,7 @@
 #include "helper_cuda.h"
 #include "device_launch_parameters.h"
 #include "cusolverDn.h"
+#include "pca.cuh"
 
 __global__ void pca_gpu(float* tab, int n){
 
@@ -56,10 +57,10 @@ void runPCA(nifti_data_type * data, int xyzv){
 	
 	//free gpu memory
 	checkCudaErrors(cudaFree(dev_A));
+	cusolverDnDestroy(handle); //sprawdzac checkCudaErrors
 	checkCudaErrors(cudaDeviceReset()); // dla debuggera
 	//free(c);
 	
-	cusolverDnDestroy(handle); //sprawdzac checkCudaErrors
 	printf("Kernel-only time: %f ms\n", elapsedTime);
 
 	return;

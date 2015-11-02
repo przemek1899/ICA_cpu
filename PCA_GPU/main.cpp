@@ -27,18 +27,17 @@ int main(){
 	FslClose(fslio);
 	//the end of reading data
 
-
 	/*
 	StopWatchInterface *timer = NULL;
 	sdkCreateTimer(&timer);
 	sdkStartTimer(&timer);*/
 	
-	runPCA(data);
+	runPCA(data, nvol);
 
 	//sdkStopTimer(&timer);
 	//printf("Processing time: %f ms\n", sdkGetTimerValue(&timer));
 	//sdkDeleteTimer(&timer);
 
-	free(data, nvol);
+	free(data);
 	return 0;
 }
