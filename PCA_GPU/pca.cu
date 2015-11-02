@@ -8,19 +8,25 @@
 #include "helper_cuda.h"
 #include "device_launch_parameters.h"
 
-__global__ void pca_gpu(){
+__global__ void pca_gpu(int* tab, int n){
+
+	int i = blockIdx.x * blockDim.x + threadIdx.x;
+	if (i < n){
+		tab[i] = i*i;
+	}
 
 }
 
 void runPCA(void){
 
 	checkCudaErrors(cudaSetDevice(0));
-	/*
-	float *dev_A, *dev_C;
+	int m = 64;
+	int n = 64;
+	float *dev_A;
 	//allocate memory
     checkCudaErrors(cudaMalloc(&dev_A, m*n*sizeof(float)));
-    checkCudaErrors(cudaMalloc(&dev_C, m*m*sizeof(float)));
-
+    //checkCudaErrors(cudaMalloc(&dev_C, m*m*sizeof(float)));
+	/*
 	// copy data from cpu to gpu memory
     checkCudaErrors(cudaMemcpy(dev_A, A, m*n*sizeof(float), cudaMemcpyHostToDevice));
 	*/
@@ -33,6 +39,7 @@ void runPCA(void){
 	checkCudaErrors(cudaEventRecord(start, 0));
 
 	// call kernel function here
+	pca_gpu<<<64, 64>>>(&dev_A, m*n);
 
 	checkCudaErrors(cudaGetLastError());
 	checkCudaErrors(cudaEventRecord(stop, 0));
@@ -41,17 +48,21 @@ void runPCA(void){
 	checkCudaErrors(cudaEventDestroy(start));
 	checkCudaErrors(cudaEventDestroy(stop));
 
+	
+	float * c = malloc(m*n*sizeof(float));
 
-	/*
 	//copy results from gpu memory to cpu
-	checkCudaErrors(cudaMemcpy(C, dev_C, m*m*sizeof(float), cudaMemcpyDeviceToHost));
-
+	checkCudaErrors(cudaMemcpy(c, dev_A, m*n*sizeof(float), cudaMemcpyDeviceToHost));
+	int i;
+	for(i=0; i<n*m; i++){
+		printf("%f\n", c[i]);
+	}
+	
 	//free gpu memory
-    checkCudaErrors(cudaFree(dev_C));
-    checkCudaErrors(cudaFree(dev_A));
-    */
 
+	checkCudaErrors(cudaFree(dev_A));
 	checkCudaErrors(cudaDeviceReset()); // dla debuggera
+	free(c);
 
 	printf("Kernel-only time: %f ms\n", elapsedTime);
 
