@@ -7,6 +7,7 @@
 #include "cuda_runtime.h"
 #include "helper_cuda.h"
 #include "device_launch_parameters.h"
+#include "cusolverDn.h"
 
 __global__ void pca_gpu(float* tab, int n){
 
@@ -23,7 +24,7 @@ void runPCA(void){
 
 	//initialize cusolverDn
 	cusolverDnHandle_t handle = NULL;
-	checkCudaErrors(cusolverDnCreate(&handle));
+	cusolverDnCreate(&handle); //sprawdzac checkCudaErrors
 
 	int m = 64;
 	int n = 64;
@@ -65,7 +66,7 @@ void runPCA(void){
 	checkCudaErrors(cudaDeviceReset()); // dla debuggera
 	//free(c);
 	
-	checkCudaErrors(cusolverDnDestroy(handle));
+	cusolverDnDestroy(handle); //sprawdzac checkCudaErrors
 	printf("Kernel-only time: %f ms\n", elapsedTime);
 
 	return;
