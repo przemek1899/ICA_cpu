@@ -86,9 +86,18 @@ void runPCA(nifti_data_type * data, int m, int n){
 
 	//copy results from gpu memory to cpu
 	//checkCudaErrors(cudaMemcpy(c, dev_A, m*n*sizeof(float), cudaMemcpyDeviceToHost));
+	//nifti_data_type * diagonalMatrix = (nifti_data_type *) malloc(imin(m,n)*sizeof(nifti_data_type));
+	//checkCudaErrors(cudaMemcpy(diagonalMatrix, S, imin(m,n)*sizeof(nifti_data_type), cudaMemcpyDeviceToHost));
+	//int k = imin(m,n);
+	//free(diagonalMatrix);
 	
 	//free gpu memory
 	checkCudaErrors(cudaFree(dev_A));
+	checkCudaErrors(cudaFree(S));
+	checkCudaErrors(cudaFree(U));
+	checkCudaErrors(cudaFree(VT));
+	checkCudaErrors(cudaFree(Work));
+
 	cusolverDnDestroy(handle); //sprawdzac checkCudaErrors
 	checkCudaErrors(cudaDeviceReset()); // dla debuggera
 	//free(c);
