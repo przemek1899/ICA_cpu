@@ -4,6 +4,6 @@
 
 typedef float nifti_data_type;
 
-void runPCA(nifti_data_type* data, int xyzv);
+void runPCA(nifti_data_type* data, int xy, int zv);
 
 #endif

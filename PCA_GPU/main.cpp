@@ -32,7 +32,8 @@ int main(){
 	sdkCreateTimer(&timer);
 	sdkStartTimer(&timer);*/
 	
-	runPCA(data, nvol);
+	// keep in mind that first parameter below (x*y*z which is m) must be equal or bigger than the second one (v which is n), m >= n
+	runPCA(data, x*y*z, v);
 
 	//sdkStopTimer(&timer);
 	//printf("Processing time: %f ms\n", sdkGetTimerValue(&timer));

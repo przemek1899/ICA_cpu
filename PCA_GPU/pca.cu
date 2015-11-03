@@ -10,6 +10,8 @@
 #include "cusolverDn.h"
 #include "pca.cuh"
 
+#define imin(X, Y)  ((X) < (Y) ? (X) : (Y))
+
 __global__ void pca_gpu(float* tab, int n){
 
 	int i = blockIdx.x * blockDim.x + threadIdx.x;
@@ -19,7 +21,7 @@ __global__ void pca_gpu(float* tab, int n){
 
 }
 
-void runPCA(nifti_data_type * data, int xyzv){
+void runPCA(nifti_data_type * data, int m, int n){
 
 	checkCudaErrors(cudaSetDevice(0));
 
@@ -29,11 +31,41 @@ void runPCA(nifti_data_type * data, int xyzv){
 
 	//allocate memory
 	nifti_data_type * dev_A;
-    checkCudaErrors(cudaMalloc(&dev_A, xyzv*sizeof(nifti_data_type)));
+    checkCudaErrors(cudaMalloc(&dev_A, m*n*sizeof(nifti_data_type)));
     
 	// copy data from cpu to gpu memory
-    checkCudaErrors(cudaMemcpy(dev_A, data, xyzv*sizeof(nifti_data_type), cudaMemcpyHostToDevice));
-	
+    checkCudaErrors(cudaMemcpy(dev_A, data, m*n*sizeof(nifti_data_type), cudaMemcpyHostToDevice));
+
+	// calculate the size needed for pre-allocated buffer
+	// xy - numer of rows, zv - number of columns
+	int Lwork;
+	checkCudaErrors(cusolverDnSgesvd_bufferSize(handle, m, n, &Lwork));
+
+	//prepare arguments for cusolver svd
+	char jobu = 'A';
+	char jobvt = 'A';
+	int *devInfo = NULL;
+	int lda = m; // leading dimension is equal to m ?? (or n ??)
+    int ldu = m;
+    int ldvt = n;
+
+	// below there are some notes from the cuda toolkit cusolver documentation
+	// Note that the routine returns V H , not V.
+	// Remark 1: gesvd only supports m>=n.  VEEEEEEEEERY IMPORTANT !!!!!!!!!!!!!!!!!!!!!
+	// Remark 2: gesvd only supports jobu='A' and jobvt='A' and returns matrix U and V H .
+	// rwork - needed for data types C,Z
+
+	nifti_data_type * S, *U, *VT, *Work, *rwork;
+	checkCudaErrors(cudaMalloc(&S, imin(m,n)*sizeof(nifti_data_type)));
+	checkCudaErrors(cudaMalloc(&U, ldu*m*sizeof(nifti_data_type)));
+	checkCudaErrors(cudaMalloc(&VT, ldvt*n*sizeof(nifti_data_type)));
+	checkCudaErrors(cudaMalloc(&Work, Lwork*sizeof(nifti_data_type)));
+
+	// do we really need rwork??
+	// run cusolver svd
+	printf("before run cusolver svd\n");
+	checkCudaErrors(cusolverDnSgesvd(handle, jobu, jobvt, m, n, dev_A, lda, S, U, ldu, VT, ldvt, Work, Lwork, rwork, devInfo));
+	printf("after cusolver svd\n");
 
 	cudaEvent_t start, stop;
 	float elapsedTime;
