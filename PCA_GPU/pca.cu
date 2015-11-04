@@ -21,6 +21,13 @@ __global__ void pca_gpu(float* tab, int n){
 
 }
 
+void checkCuSolverErrors(cusolverStatus_t code){
+
+	if(code){
+		fprintf(stderr, "Cuda solver error code %d\n", static_cast<unsigned int>(code));
+	}
+}
+
 void runPCA(nifti_data_type * data, int m, int n){
 
 	checkCudaErrors(cudaSetDevice(0));
@@ -39,7 +46,7 @@ void runPCA(nifti_data_type * data, int m, int n){
 	// calculate the size needed for pre-allocated buffer
 	// xy - numer of rows, zv - number of columns
 	int Lwork;
-	checkCudaErrors(cusolverDnSgesvd_bufferSize(handle, m, n, &Lwork));
+	checkCuSolverErrors(cusolverDnSgesvd_bufferSize(handle, m, n, &Lwork));
 
 	//prepare arguments for cusolver svd
 	char jobu = 'A';
@@ -64,7 +71,7 @@ void runPCA(nifti_data_type * data, int m, int n){
 	// do we really need rwork??
 	// run cusolver svd
 	printf("before run cusolver svd\n");
-	checkCudaErrors(cusolverDnSgesvd(handle, jobu, jobvt, m, n, dev_A, lda, S, U, ldu, VT, ldvt, Work, Lwork, rwork, devInfo));
+	checkCuSolverErrors(cusolverDnSgesvd(handle, jobu, jobvt, m, n, dev_A, lda, S, U, ldu, VT, ldvt, Work, Lwork, rwork, devInfo));
 	printf("after cusolver svd\n");
 
 	cudaEvent_t start, stop;
