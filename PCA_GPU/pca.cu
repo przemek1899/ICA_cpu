@@ -25,10 +25,18 @@ void checkCuSolverErrors(cusolverStatus_t code){
 
 	if(code){
 		fprintf(stderr, "Cuda solver error code %d\n", static_cast<unsigned int>(code));
+		cudaDeviceReset();
+        // Make sure we call CUDA Device Reset before exiting
+        exit(EXIT_FAILURE);
 	}
 }
 
 void runPCA(nifti_data_type * data, int m, int n){
+
+	if (m < n){
+		fprintf(stderr, "rows parameter (m) is smaller than columns parameter (n)\n");
+		exit(EXIT_FAILURE);
+	}
 
 	checkCudaErrors(cudaSetDevice(0));
 
@@ -62,11 +70,14 @@ void runPCA(nifti_data_type * data, int m, int n){
 	// Remark 2: gesvd only supports jobu='A' and jobvt='A' and returns matrix U and V H .
 	// rwork - needed for data types C,Z
 
+	pritnf("m = %d, n = %d, Lwork = %d\n", m, n, Lwork);
+
 	nifti_data_type * S, *U, *VT, *Work, *rwork;
 	checkCudaErrors(cudaMalloc(&S, imin(m,n)*sizeof(nifti_data_type)));
 	checkCudaErrors(cudaMalloc(&U, ldu*m*sizeof(nifti_data_type)));
 	checkCudaErrors(cudaMalloc(&VT, ldvt*n*sizeof(nifti_data_type)));
 	checkCudaErrors(cudaMalloc(&Work, Lwork*sizeof(nifti_data_type)));
+	checkCudaErrors(cudaMalloc(&rwork, 5*imin(m,n)*sizeof(nifti_data_type)));
 
 	// do we really need rwork??
 	// run cusolver svd
@@ -104,6 +115,7 @@ void runPCA(nifti_data_type * data, int m, int n){
 	checkCudaErrors(cudaFree(U));
 	checkCudaErrors(cudaFree(VT));
 	checkCudaErrors(cudaFree(Work));
+	checkCudaErrors(cudaFree(rwork));
 
 	cusolverDnDestroy(handle); //sprawdzac checkCudaErrors
 	checkCudaErrors(cudaDeviceReset()); // dla debuggera
