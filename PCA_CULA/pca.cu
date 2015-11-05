@@ -21,14 +21,18 @@ __global__ void pca_gpu(float* tab, int n){
 
 }
 
-void checkCuSolverErrors( code){
+void checkStatus(culaStatus status)
+{
+    char buf[256];
 
-	if(code){
-		fprintf(stderr, "Cuda solver error code %d\n", static_cast<unsigned int>(code));
-		cudaDeviceReset();
-        // Make sure we call CUDA Device Reset before exiting
-        exit(EXIT_FAILURE);
-	}
+    if(!status)
+        return;
+
+    culaGetErrorInfoString(status, culaGetErrorInfo(), buf, sizeof(buf));
+    printf("%s\n", buf);
+
+    culaShutdown();
+    exit(EXIT_FAILURE);
 }
 
 void runPCA(nifti_data_type * A, int m, int n){

@@ -18,10 +18,13 @@ int main(){
 	signed short *bf = (signed short *) buffer;
 	FslGetDim(fslio, &x, &y, &z, &v);
 	int nvol = x*y*z*v;
-	nifti_data_type *data = (nifti_data_type *) malloc(sizeof(nifti_data_type)*nvol);
 	//petla do przemyslania - moze na gpu?
 	int i;
-	for(i=0; i<nvol; i++){
+	int m = 100; // x*y*z
+	int n = 100; // = v
+	int mn = m*n;
+	nifti_data_type *data = (nifti_data_type *) malloc(sizeof(nifti_data_type)*mn);
+	for(i=0; i < mn; i++){
 		data[i] = bf[i];
 	}
 	FslClose(fslio);
@@ -33,7 +36,7 @@ int main(){
 	sdkStartTimer(&timer);*/
 	
 	// keep in mind that first parameter below (x*y*z which is m) must be equal or bigger than the second one (v which is n), m >= n
-	runPCA(data, x*y*z, v);
+	runPCA(data, m, n);
 
 	//sdkStopTimer(&timer);
 	//printf("Processing time: %f ms\n", sdkGetTimerValue(&timer));

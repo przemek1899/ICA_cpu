@@ -59,7 +59,6 @@ void runPCA(nifti_data_type * data, int m, int n){
 	//prepare arguments for cusolver svd
 	char jobu = 'A';
 	char jobvt = 'A';
-	int *devInfo = NULL;
 	int lda = m; // leading dimension is equal to m ?? (or n ??)
     int ldu = m;
     int ldvt = n;
@@ -70,20 +69,26 @@ void runPCA(nifti_data_type * data, int m, int n){
 	// Remark 2: gesvd only supports jobu='A' and jobvt='A' and returns matrix U and V H .
 	// rwork - needed for data types C,Z
 
-	pritnf("m = %d, n = %d, Lwork = %d\n", m, n, Lwork);
+	printf("m = %d, n = %d, Lwork = %d\n", m, n, Lwork);
+
+	int *devInfo;
+	checkCudaErrors(cudaMalloc(&devInfo, sizeof(int)));
 
 	nifti_data_type * S, *U, *VT, *Work, *rwork;
 	checkCudaErrors(cudaMalloc(&S, imin(m,n)*sizeof(nifti_data_type)));
 	checkCudaErrors(cudaMalloc(&U, ldu*m*sizeof(nifti_data_type)));
 	checkCudaErrors(cudaMalloc(&VT, ldvt*n*sizeof(nifti_data_type)));
 	checkCudaErrors(cudaMalloc(&Work, Lwork*sizeof(nifti_data_type)));
-	checkCudaErrors(cudaMalloc(&rwork, 5*imin(m,n)*sizeof(nifti_data_type)));
+	//checkCudaErrors(cudaMalloc(&rwork, 5*imin(m,n)*sizeof(nifti_data_type)));
 
 	// do we really need rwork??
 	// run cusolver svd
 	printf("before run cusolver svd\n");
 	checkCuSolverErrors(cusolverDnSgesvd(handle, jobu, jobvt, m, n, dev_A, lda, S, U, ldu, VT, ldvt, Work, Lwork, rwork, devInfo));
-	printf("after cusolver svd\n");
+	int h_devInfo;
+	cudaDeviceSynchronize();
+	checkCudaErrors(cudaMemcpy(&h_devInfo, devInfo, sizeof(int), cudaMemcpyDeviceToHost));
+	printf("devInfo %d\n", h_devInfo);
 
 	cudaEvent_t start, stop;
 	float elapsedTime;
@@ -116,6 +121,7 @@ void runPCA(nifti_data_type * data, int m, int n){
 	checkCudaErrors(cudaFree(VT));
 	checkCudaErrors(cudaFree(Work));
 	checkCudaErrors(cudaFree(rwork));
+	checkCudaErrors(cudaFree(devInfo));
 
 	cusolverDnDestroy(handle); //sprawdzac checkCudaErrors
 	checkCudaErrors(cudaDeviceReset()); // dla debuggera
