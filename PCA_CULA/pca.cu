@@ -53,7 +53,7 @@ void runPCA(nifti_data_type * A, int m, int n){
     int ldvt = n;
 
 	nifti_data_type *S = (nifti_data_type*) malloc(imin(m,n) * sizeof(nifti_data_type));
-    nifti_data_type *U = (nifti_data_type*) malloc(ldu*m* sizeof(nifti_data_type));
+    nifti_data_type *U = (nifti_data_type*) calloc(ldu*m, sizeof(nifti_data_type));
     nifti_data_type *VT = (nifti_data_type*) malloc(ldvt*n* sizeof(nifti_data_type));
 
 	/* Initialize CULA */
@@ -88,13 +88,29 @@ void runPCA(nifti_data_type * A, int m, int n){
 	//free(diagonalMatrix);
 
 	// read result data
-	printf("Elements of diagonal matrix S are the following: ");
-	int i;
+	// reading S diagonal
+	printf("\nElements of diagonal matrix S are the following: ");
+	int i, j;
 	for(i=0; i < imin(m,n); i++){
 		printf("%f ", S[i]);
 	}
-	printf("\n");
+	// reading first n columns of U matrix
+	printf("\nReading the first min(m,n)=%d columns of matrix U from the matrix A\n", imin(m,n));
+	for(i=0; i < m; i++){
+		for(j=0; j < imin(m,n); j++){
+			printf("%f ", A[i + j*m]);
+		}
+		printf("\n");
+	}
 	
+	printf("Printing matrix U, all elements should be zeros\n");
+	for(i=0; i < m; i++){
+		for(j=0; j < imin(m,n); j++){
+			printf("%f ", U[i + j*m]);
+		}
+		printf("\n");
+	}
+
 	//free host memory
 	free(S);
 	free(U);

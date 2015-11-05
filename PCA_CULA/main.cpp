@@ -61,9 +61,7 @@ int main(int argc, char * argv[] ){
 	sdkCreateTimer(&timer);
 	sdkStartTimer(&timer);*/
 	
-	//runPCA(data, m, n); //x*y*z, v
-	//testing version
-	runPCA(sample_data, m, n);
+	runPCA(data, m, n); //x*y*z, v
 
 	printf("po runPCA\n");
 	//sdkStopTimer(&timer);
