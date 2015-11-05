@@ -59,6 +59,7 @@ void runPCA(nifti_data_type * data, int m, int n){
 	//prepare arguments for cusolver svd
 	char jobu = 'A';
 	char jobvt = 'A';
+	int *devInfo; checkCudaErrors(cudaMalloc(&devInfo, sizeof(int)));
 	int lda = m; // leading dimension is equal to m ?? (or n ??)
     int ldu = m;
     int ldvt = n;
@@ -70,9 +71,6 @@ void runPCA(nifti_data_type * data, int m, int n){
 	// rwork - needed for data types C,Z
 
 	printf("m = %d, n = %d, Lwork = %d\n", m, n, Lwork);
-
-	int *devInfo;
-	checkCudaErrors(cudaMalloc(&devInfo, sizeof(int)));
 
 	nifti_data_type * S, *U, *VT, *Work, *rwork;
 	checkCudaErrors(cudaMalloc(&S, imin(m,n)*sizeof(nifti_data_type)));

@@ -18,12 +18,19 @@ int main(){
 	signed short *bf = (signed short *) buffer;
 	FslGetDim(fslio, &x, &y, &z, &v);
 	int nvol = x*y*z*v;
-	//petla do przemyslania - moze na gpu?
-	int i;
-	int m = 100; // x*y*z
-	int n = 100; // = v
+
+	int m = 81920; // x*y*z
+	int n = v; // = v
 	int mn = m*n;
-	nifti_data_type *data = (nifti_data_type *) malloc(sizeof(nifti_data_type)*mn);
+	int i;
+	if (argc==3){
+		m = atoi(argv[1]);
+		n = atoi(argv[2]);
+	}
+	else if(argc == 2){
+		m = atoi(argv[1]);
+	}
+	nifti_data_type *data = (nifti_data_type*) malloc(sizeof(nifti_data_type)*mn);
 	for(i=0; i < mn; i++){
 		data[i] = bf[i];
 	}
