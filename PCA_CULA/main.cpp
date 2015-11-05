@@ -30,21 +30,40 @@ int main(int argc, char * argv[] ){
 	else if(argc == 2){
 		m = atoi(argv[1]);
 	}
+
+	// some sample data for testing
+	float sample_data [4][5] = {{1.0f, 0.0f, 0.0f, 0.0f, 2.0f}, {0.0f, 0.0f, 3.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f, 0.0f, 0.0f}, {0.0f, 4.0f, 0.0f, 0.0f, 0.0f}};
+	m = 5; n = 4;
+	int sample_size = m*n;
+
+	// testing version
+	nifti_data_type *data = (nifti_data_type*) malloc(sizeof(nifti_data_type)*sample_size);
+	int j;
+	for(i=0; i < n; i++){
+		for(j=0; j < m; j++){
+			data[i*m + j] = sample_data[i][j];
+		}
+	}
+
+	/* production version
 	nifti_data_type *data = (nifti_data_type*) malloc(sizeof(nifti_data_type)*mn);
 	for(i=0; i<mn; i++){
 		data[i] = bf[i];
 	}
+	*/
 	FslClose(fslio);
 	//the end of reading data
 
 	printf("po zamkniecu fslio\n");
+
 	/*
 	StopWatchInterface *timer = NULL;
 	sdkCreateTimer(&timer);
 	sdkStartTimer(&timer);*/
 	
-	// keep in mind that first parameter below (x*y*z which is m) must be equal or bigger than the second one (v which is n), m >= n
-	runPCA(data, m, n); //x*y*z, v
+	//runPCA(data, m, n); //x*y*z, v
+	//testing version
+	runPCA(sample_data, m, n);
 
 	printf("po runPCA\n");
 	//sdkStopTimer(&timer);

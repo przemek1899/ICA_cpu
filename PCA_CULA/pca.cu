@@ -86,6 +86,14 @@ void runPCA(nifti_data_type * A, int m, int n){
 	//checkCudaErrors(cudaMemcpy(diagonalMatrix, S, imin(m,n)*sizeof(nifti_data_type), cudaMemcpyDeviceToHost));
 	//int k = imin(m,n);
 	//free(diagonalMatrix);
+
+	// read result data
+	printf("Elements of diagonal matrix S are the following: ");
+	int i;
+	for(i=0; i < imin(m,n); i++){
+		printf("%f ", S[i]);
+	}
+	printf("\n");
 	
 	//free host memory
 	free(S);
