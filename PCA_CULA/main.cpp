@@ -19,7 +19,7 @@ int main(int argc, char * argv[] ){
 	FslGetDim(fslio, &x, &y, &z, &v);
 	int nvol = x*y*z*v;
 
-	int m = 81920; // x*y*z
+	int m = x*y*z; // x*y*z
 	int n = v; // = v
 	int mn = m*n;
 	int i;

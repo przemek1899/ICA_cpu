@@ -62,8 +62,6 @@ void runPCA(nifti_data_type * A, int m, int n){
 
 	/* Perform singular value decomposition CULA */
     printf("Performing singular value decomposition using CULA ... ");
-    status = culaSgesvd(jobu, jobvt, m, n, A, lda, S, U, ldu, VT, ldvt);
-    checkStatus(status);
 
 	cudaEvent_t start, stop;
 	float elapsedTime;
@@ -72,8 +70,8 @@ void runPCA(nifti_data_type * A, int m, int n){
 	checkCudaErrors(cudaEventCreate(&stop));
 	checkCudaErrors(cudaEventRecord(start, 0));
 
-	// call kernel function here
-	//pca_gpu<<<64, 64>>>(dev_A, m*n);
+    status = culaSgesvd(jobu, jobvt, m, n, A, lda, S, U, ldu, VT, ldvt);
+    checkStatus(status);
 
 	checkCudaErrors(cudaGetLastError());
 	checkCudaErrors(cudaEventRecord(stop, 0));
