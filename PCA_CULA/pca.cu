@@ -89,10 +89,10 @@ void runPCA(nifti_data_type * A, int m, int n){
 	//int k = imin(m,n);
 	//free(diagonalMatrix);
 	
-	//free gpu memory
-	checkCudaErrors(cudaFree(S));
-	checkCudaErrors(cudaFree(U));
-	checkCudaErrors(cudaFree(VT));
+	//free host memory
+	free(S);
+	free(U);
+	free(VT);
 
 	checkCudaErrors(cudaDeviceReset()); // dla debuggera
 	
