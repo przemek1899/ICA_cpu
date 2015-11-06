@@ -98,7 +98,7 @@ void runPCA(nifti_data_type * A, int m, int n){
 	// read result data
 	// reading S diagonal
 	
-	ofstream S_file;
+	std::ofstream S_file;
 	S_file.open("Smatrix.txt");
 
 	printf("\nElements of diagonal matrix S are the following: ");
