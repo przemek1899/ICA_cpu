@@ -55,9 +55,14 @@ void runPCA(nifti_data_type * A, int m, int n){
 
 	int min = imin(m,n);
 
-	nifti_data_type *S = (nifti_data_type*) malloc(min * sizeof(nifti_data_type));
-    nifti_data_type *U = (nifti_data_type*) calloc(ldu*m, sizeof(nifti_data_type));
-    nifti_data_type *VT = (nifti_data_type*) malloc(ldvt*n* sizeof(nifti_data_type));
+	nifti_data_type *S, *U, *VT;
+	S = (nifti_data_type*) malloc(min * sizeof(nifti_data_type));
+	if (jobu != 'O' && jobu != 'N'){
+		U = (nifti_data_type*) calloc(ldu*m, sizeof(nifti_data_type));
+	}
+	if (jobvt != 'O' && jobvt != 'N'){
+		VT = (nifti_data_type*) malloc(ldvt*n* sizeof(nifti_data_type));
+	}
 
 	/* Initialize CULA */
     status = culaInitialize();
@@ -126,8 +131,12 @@ void runPCA(nifti_data_type * A, int m, int n){
 
 	//free host memory
 	free(S);
-	free(U);
-	free(VT);
+	if (jobu != 'O' && jobu != 'N'){
+		free(U);
+	}
+	if (jobvt != 'O' && jobvt != 'N'){
+		free(VT);
+	}
 
 	checkCudaErrors(cudaDeviceReset()); // dla debuggera
 	
