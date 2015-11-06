@@ -9,6 +9,7 @@
 #include "device_launch_parameters.h"
 #include <cula_lapack.h>
 #include "pca.cuh"
+#include <fstream>
 
 #define imin(X, Y)  ((X) < (Y) ? (X) : (Y))
 
@@ -91,11 +92,19 @@ void runPCA(nifti_data_type * A, int m, int n){
 
 	// read result data
 	// reading S diagonal
+	
+	ofstream S_file;
+	S_file.open("Smatrix.txt");
+
 	printf("\nElements of diagonal matrix S are the following: ");
 	int i, j;
 	for(i=0; i < min; i++){
-		printf("%f ", S[i]);
+		// printf("%f ", S[i]);
+		S_file << S[i] << "\n";
 	}
+
+	S_file.close();
+	/*
 	// reading first n columns of U matrix
 	printf("\nReading the first min(m,n)=%d columns of matrix U from the matrix A\n", imin(m,n));
 	for(i=0; i < m; i++){
@@ -105,6 +114,7 @@ void runPCA(nifti_data_type * A, int m, int n){
 		printf("\n");
 	}
 	
+	// reading first n rows of VT matrix
 	printf("Printing matrix VT\n");
 	for(i=0; i < min; i++){
 		for(j=0; j < n; j++){
@@ -112,6 +122,7 @@ void runPCA(nifti_data_type * A, int m, int n){
 		}
 		printf("\n");
 	}
+	*/
 
 	//free host memory
 	free(S);

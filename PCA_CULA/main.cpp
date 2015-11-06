@@ -32,7 +32,7 @@ int main(int argc, char * argv[] ){
 	}
 
 	// some sample data for testing
-	float sample_data [4][5] = {{1.0f, 0.0f, 0.0f, 0.0f, 2.0f}, {0.0f, 0.0f, 3.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f, 0.0f, 0.0f}, {0.0f, 4.0f, 0.0f, 0.0f, 0.0f}};
+	/*float sample_data [4][5] = {{1.0f, 0.0f, 0.0f, 0.0f, 2.0f}, {0.0f, 0.0f, 3.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f, 0.0f, 0.0f}, {0.0f, 4.0f, 0.0f, 0.0f, 0.0f}};
 	m = 5; n = 4;
 	int sample_size = m*n;
 
@@ -44,13 +44,14 @@ int main(int argc, char * argv[] ){
 			data[i*m + j] = sample_data[i][j];
 		}
 	}
+	/*
 
-	/* production version
+	/* production version */
 	nifti_data_type *data = (nifti_data_type*) malloc(sizeof(nifti_data_type)*mn);
-	for(i=0; i<mn; i++){
+	for(i=0; i < mn; i++){
 		data[i] = bf[i];
 	}
-	*/
+	
 	FslClose(fslio);
 	//the end of reading data
 
