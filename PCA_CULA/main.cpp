@@ -1,6 +1,7 @@
 //#include "helper_timer.h"
 #include "pca.cuh"
 #include <fslio.h>
+#include <fstream>
 	
 
 int main(int argc, char * argv[] ){
@@ -32,7 +33,7 @@ int main(int argc, char * argv[] ){
 	}
 
 	// some sample data for testing
-	/*float sample_data [4][5] = {{1.0f, 0.0f, 0.0f, 0.0f, 2.0f}, {0.0f, 0.0f, 3.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f, 0.0f, 0.0f}, {0.0f, 4.0f, 0.0f, 0.0f, 0.0f}};
+	double sample_data [4][5] = {{1.0, 0.0, 0.0, 0.0, 2.0}, {0.0, 0.0, 3.0, 0.0, 0.0}, {0.0, 0.0, 0.0, 0.0, 0.0}, {0.0, 4.0, 0.0, 0.0, 0.0}};
 	m = 5; n = 4;
 	int sample_size = m*n;
 
@@ -46,17 +47,20 @@ int main(int argc, char * argv[] ){
 	}
 	/*
 
-	/* production version */
+	/* production version 
+	std::ofstream column;
+	column.open("Column.txt");
+
 	nifti_data_type *data = (nifti_data_type*) malloc(sizeof(nifti_data_type)*mn);
 	for(i=0; i < mn; i++){
-		data[i] = bf[i];
+		data[i] = (nifti_data_type) bf[i];
+		if (i < v){
+			printf("%d:  %f\n", i+1, data[i]);
+		}
 	}
-	
+	column.close();
+	*/
 	FslClose(fslio);
-	//the end of reading data
-
-	printf("po zamkniecu fslio\n");
-
 	/*
 	StopWatchInterface *timer = NULL;
 	sdkCreateTimer(&timer);
@@ -64,7 +68,6 @@ int main(int argc, char * argv[] ){
 	
 	runPCA(data, m, n); //x*y*z, v
 
-	printf("po runPCA\n");
 	//sdkStopTimer(&timer);
 	//printf("Processing time: %f ms\n", sdkGetTimerValue(&timer));
 	//sdkDeleteTimer(&timer);

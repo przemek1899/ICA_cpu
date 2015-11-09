@@ -78,7 +78,7 @@ void runPCA(nifti_data_type * A, int m, int n){
 	checkCudaErrors(cudaEventCreate(&stop));
 	checkCudaErrors(cudaEventRecord(start, 0));
 
-    status = culaSgesvd(jobu, jobvt, m, n, A, lda, S, U, ldu, VT, ldvt);
+    status = culaGesvd(jobu, jobvt, m, n, A, lda, S, U, ldu, VT, ldvt);
     checkStatus(status);
 
 	checkCudaErrors(cudaGetLastError());
@@ -99,19 +99,19 @@ void runPCA(nifti_data_type * A, int m, int n){
 	// reading S diagonal
 	int i, j;
 
-	/*
-	std::ofstream S_file;
-	S_file.open("Smatrix.txt");
+	
+	//std::ofstream S_file;
+	//S_file.open("Smatrix.txt");
 
 	printf("\nElements of diagonal matrix S are the following: ");
 	
 	for(i=0; i < min; i++){
-		// printf("%f ", S[i]);
-		S_file << S[i] << "\n";
+		printf("%f ", S[i]);
+		//S_file << S[i] << "\n";
 	}
 
-	S_file.close();
-	*/
+	//S_file.close();
+	
 	
 	// reading first n columns of U matrix
 	/*
@@ -132,15 +132,15 @@ void runPCA(nifti_data_type * A, int m, int n){
 	// reading first n rows of VT matrix
 
 	std::ofstream VT_file;
-	VT_file.open("VTmatrix.txt");
+	VT_file.open("VTmatrix_sample.txt");
 
 	printf("Printing matrix VT\n");
 	for(i=0; i < min; i++){
 		for(j=0; j < n; j++){
-			//printf("%f ", VT[i*min + j]);
-			VT_file << VT[i*min + j];
+			printf("%f ", VT[i*min + j]);
+			VT_file << VT[i*min + j] << " ";
 		}
-		//printf("\n");
+		printf("\n");
 		VT_file << "\n";
 	}
 	
