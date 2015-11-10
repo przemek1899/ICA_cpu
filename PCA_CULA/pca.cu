@@ -6,13 +6,13 @@
 #include "cuda_runtime.h"
 #include "helper_cuda.h"
 #include "device_launch_parameters.h"
-#include <cula_lapack.h>
+#include <cula_device_lapack.h>
 #include "pca.cuh"
 #include <fstream>
 
 #define imin(X, Y)  ((X) < (Y) ? (X) : (Y))
 
-__global__ void pca_gpu(float* tab, int n){
+__global__ void example_GPU(float* tab, int n){
 
 	int i = blockIdx.x * blockDim.x + threadIdx.x;
 	if (i < n){
@@ -20,12 +20,17 @@ __global__ void pca_gpu(float* tab, int n){
 	}
 }
 
+__global__ void get_mu(nifti_data_type * A, nifti_data_type * MU, int m, int n){
+
+	// in this version thera are not yet weights, not needed now
+
+}
+
 void checkStatus(culaStatus status)
 {
     char buf[256];
     if(!status)
         return;
-
     culaGetErrorInfoString(status, culaGetErrorInfo(), buf, sizeof(buf));
     printf("%s\n", buf);
     culaShutdown();
@@ -50,12 +55,21 @@ void runPCA(nifti_data_type * A, int m, int n){
 	int min = imin(m,n);
 
 	nifti_data_type *S, *U, *VT;
+	nifti_data_type *A_dev, *S_dev, *U_dev, *VT_dev;
+
+	checkCudaErrors(cudaMalloc(&A_dev, m*n*sizeof(nifti_data_type)));
+	checkCudaErrors(cudaMemcpy(A_dev, A, m*n*sizeof(nifti_data_type), cudaMemcpyHostToDevice));
+
 	S = (nifti_data_type*) malloc(min * sizeof(nifti_data_type));
+	checkCudaErrors(cudaMalloc(&S_dev, min * sizeof(nifti_data_type)));
+
 	if (jobu != 'O' && jobu != 'N'){
 		U = (nifti_data_type*) calloc(ldu*m, sizeof(nifti_data_type));
+		checkCudaErrors(cudaMalloc(&U_dev, ldu*m*sizeof(nifti_data_type)));
 	}
 	if (jobvt != 'O' && jobvt != 'N'){
-		VT = (nifti_data_type*) malloc(ldvt*n* sizeof(nifti_data_type));
+		VT = (nifti_data_type*) malloc(ldvt*n*sizeof(nifti_data_type));
+		checkCudaErrors(cudaMalloc(&VT_dev, ldvt*n*sizeof(nifti_data_type)));
 	}
 
 	/* Initialize CULA */
@@ -63,6 +77,8 @@ void runPCA(nifti_data_type * A, int m, int n){
     culaStatus status;
     status = culaInitialize();
     checkStatus(status);
+
+	// copy data to 
 
 	/* Perform singular value decomposition CULA */
     printf("Performing singular value decomposition using CULA ... ");
@@ -73,7 +89,7 @@ void runPCA(nifti_data_type * A, int m, int n){
 	checkCudaErrors(cudaEventCreate(&stop));
 	checkCudaErrors(cudaEventRecord(start, 0));
 
-    status = culaDgesvd(jobu, jobvt, m, n, A, lda, S, U, ldu, VT, ldvt);
+    status = culaDeviceDgesvd(jobu, jobvt, m, n, A, lda, S, U, ldu, VT, ldvt);
     checkStatus(status);
 
 	checkCudaErrors(cudaGetLastError());
@@ -82,6 +98,9 @@ void runPCA(nifti_data_type * A, int m, int n){
 	checkCudaErrors(cudaEventElapsedTime(&elapsedTime, start, stop));
 	checkCudaErrors(cudaEventDestroy(start));
 	checkCudaErrors(cudaEventDestroy(stop));
+
+	// transfer data from gpu to host memory
+	checkCudaErrors(cudaMemcpy(S, S_dev, min*sizeof(nifti_data_type), cudaMemcpyDeviceToHost));
 	
 	int i, j;
 	// read result data
@@ -133,13 +152,19 @@ void runPCA(nifti_data_type * A, int m, int n){
 	VT_file.close();
 	*/
 
-	//free host memory
+	//free memory
+	
+	checkCudaErrors(cudaFree(A_dev));
 	free(S);
+	checkCudaErrors(cudaFree(S_dev));
+
 	if (jobu != 'O' && jobu != 'N'){
 		free(U);
+		checkCudaErrors(cudaFree(U_dev));
 	}
 	if (jobvt != 'O' && jobvt != 'N'){
 		free(VT);
+		checkCudaErrors(cudaFree(VT_dev));
 	}
 
 	checkCudaErrors(cudaDeviceReset()); // dla debuggera
