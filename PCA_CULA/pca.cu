@@ -1,4 +1,3 @@
-
 /*
  * PCA Principal Component Analysis on raw data
  * This implementation bases on matlab pca implementation
@@ -19,40 +18,35 @@ __global__ void pca_gpu(float* tab, int n){
 	if (i < n){
 		tab[i] = i*i;
 	}
-
 }
 
 void checkStatus(culaStatus status)
 {
     char buf[256];
-
     if(!status)
         return;
 
     culaGetErrorInfoString(status, culaGetErrorInfo(), buf, sizeof(buf));
     printf("%s\n", buf);
-
     culaShutdown();
     exit(EXIT_FAILURE);
 }
 
 void runPCA(nifti_data_type * A, int m, int n){
 
-	if (m < n){
-		fprintf(stderr, "rows parameter (m) is smaller than columns parameter (n)\n");
-		exit(EXIT_FAILURE);
+	// for m >= n
+	char jobu = 'O';  // n > m ? 'S' : 'O';
+	char jobvt = 'S'; // n > m ? 'O' : 'S';
+
+	// for n > m 
+	if (n > m){
+		jobu = 'S';
+		jobvt = 'O';
 	}
 
-	culaStatus status;
-	checkCudaErrors(cudaSetDevice(0));
-
-	//prepare arguments for cusolver svd
-	char jobu = 'O';
-	char jobvt = 'S';
-	int lda = m; // leading dimension is equal to m ?? (or n ??)
+	int lda = m;
     int ldu = m;
     int ldvt = n;
-
 	int min = imin(m,n);
 
 	nifti_data_type *S, *U, *VT;
@@ -65,6 +59,8 @@ void runPCA(nifti_data_type * A, int m, int n){
 	}
 
 	/* Initialize CULA */
+	checkCudaErrors(cudaSetDevice(0));
+    culaStatus status;
     status = culaInitialize();
     checkStatus(status);
 
@@ -73,12 +69,11 @@ void runPCA(nifti_data_type * A, int m, int n){
 
 	cudaEvent_t start, stop;
 	float elapsedTime;
-
 	checkCudaErrors(cudaEventCreate(&start));
 	checkCudaErrors(cudaEventCreate(&stop));
 	checkCudaErrors(cudaEventRecord(start, 0));
 
-    status = culaGesvd(jobu, jobvt, m, n, A, lda, S, U, ldu, VT, ldvt);
+    status = culaDgesvd(jobu, jobvt, m, n, A, lda, S, U, ldu, VT, ldvt);
     checkStatus(status);
 
 	checkCudaErrors(cudaGetLastError());
@@ -87,18 +82,10 @@ void runPCA(nifti_data_type * A, int m, int n){
 	checkCudaErrors(cudaEventElapsedTime(&elapsedTime, start, stop));
 	checkCudaErrors(cudaEventDestroy(start));
 	checkCudaErrors(cudaEventDestroy(stop));
-
-	//copy results from gpu memory to cpu
-	//checkCudaErrors(cudaMemcpy(c, dev_A, m*n*sizeof(float), cudaMemcpyDeviceToHost));
-	//nifti_data_type * diagonalMatrix = (nifti_data_type *) malloc(imin(m,n)*sizeof(nifti_data_type));
-	//checkCudaErrors(cudaMemcpy(diagonalMatrix, S, imin(m,n)*sizeof(nifti_data_type), cudaMemcpyDeviceToHost));
-	//int k = imin(m,n);
-	//free(diagonalMatrix);
-
+	
+	int i, j;
 	// read result data
 	// reading S diagonal
-	int i, j;
-
 	
 	//std::ofstream S_file;
 	//S_file.open("Smatrix.txt");
@@ -130,7 +117,7 @@ void runPCA(nifti_data_type * A, int m, int n){
 	*/
 	
 	// reading first n rows of VT matrix
-
+	/*
 	std::ofstream VT_file;
 	VT_file.open("VTmatrix_sample.txt");
 
@@ -143,8 +130,8 @@ void runPCA(nifti_data_type * A, int m, int n){
 		printf("\n");
 		VT_file << "\n";
 	}
-	
 	VT_file.close();
+	*/
 
 	//free host memory
 	free(S);
@@ -158,6 +145,5 @@ void runPCA(nifti_data_type * A, int m, int n){
 	checkCudaErrors(cudaDeviceReset()); // dla debuggera
 	
 	printf("Kernel-only time: %f ms\n", elapsedTime);
-
 	return;
 }
