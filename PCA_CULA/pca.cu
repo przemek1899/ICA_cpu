@@ -93,7 +93,7 @@ void runPCA(nifti_data_type * A, int m, int n){
 	printf("\nElements of diagonal matrix S are the following: ");
 	
 	for(i=0; i < min; i++){
-		printf("%f ", S[i]);
+		printf("%f \n", S[i]);
 		//S_file << S[i] << "\n";
 	}
 

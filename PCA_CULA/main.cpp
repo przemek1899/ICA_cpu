@@ -65,6 +65,9 @@ int main(int argc, char * argv[] ){
 			data[n*j + i] = (nifti_data_type) bf[i*m + j];
 		}
 	}
+	int temp = n;
+	n = m;
+	m = n;
 	
 	// 2 wersja z kolejnymi zapisami
 	/*
