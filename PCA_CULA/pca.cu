@@ -6,24 +6,59 @@
 #include "cuda_runtime.h"
 #include "helper_cuda.h"
 #include "device_launch_parameters.h"
-#include <cula_device_lapack.h>
+#include <cula_lapack_device.h>
 #include "pca.cuh"
 #include <fstream>
 
 #define imin(X, Y)  ((X) < (Y) ? (X) : (Y))
 
-__global__ void example_GPU(float* tab, int n){
+int getRound(int m, int n){
 
-	int i = blockIdx.x * blockDim.x + threadIdx.x;
-	if (i < n){
-		tab[i] = i*i;
-	}
+	if (m % n == 0)
+		return m;
+	else
+		return (m/n) * n + n;
 }
 
-__global__ void get_mu(nifti_data_type * A, nifti_data_type * MU, int m, int n){
+__global__ void get_mu(nifti_data_type * A, nifti_data_type * MU, int m, int n, int iter){
 
 	// in this version thera are not yet weights, not needed now
 
+	extern __shared__ nifti_data_type Ash[];
+
+	int tid = threadIdx.x;
+
+	int difference = blockDim.x - m;
+	int index = blockIdx.x * blockDim.x + threadIdx.x;
+
+#pragma unroll
+	for (int i=0; i<iter; i++){
+		
+		int columnIndex = blockIdx.x + i * gridDim.x;
+		int globalDataIndex = index - blockIdx.x * difference + i * gridDim.x * m;
+		if (columnIndex < n){
+
+			Ash[tid] = 0.0; // initialize all to zeros (padding the rest of elements which are not part of array
+			// each thread loads one element from global memory to shared memory
+			if (tid < m){
+				Ash[tid] = A[globalDataIndex];
+			}
+			__syncthreads();
+
+			// do reduction in shared memory
+			for (unsigned int s = blockDim.x/2; s>0; s>>=1){
+				if (tid < s){
+					Ash[tid] += Ash[tid+s];
+				}
+				__syncthreads();
+			}
+
+			// write results to global memory
+			if (tid == 0){
+				MU[columnIndex] = Ash[0];
+			}
+		}
+	}
 }
 
 void checkStatus(culaStatus status)
@@ -52,13 +87,42 @@ void runPCA(nifti_data_type * A, int m, int n){
 	int lda = m;
     int ldu = m;
     int ldvt = n;
-	int min = imin(m,n);
+	int min = imin(m,n);	
+	int i, j; //do ró¿nych iteracji
 
 	nifti_data_type *S, *U, *VT;
-	nifti_data_type *A_dev, *S_dev, *U_dev, *VT_dev;
+	nifti_data_type *A_dev, *MU_dev, *S_dev, *U_dev, *VT_dev;
 
 	checkCudaErrors(cudaMalloc(&A_dev, m*n*sizeof(nifti_data_type)));
 	checkCudaErrors(cudaMemcpy(A_dev, A, m*n*sizeof(nifti_data_type), cudaMemcpyHostToDevice));
+
+	/* obliczanie wartoœci mu */
+	checkCudaErrors(cudaMalloc(&MU_dev, n*sizeof(nifti_data_type)));
+
+	int shared_mem_size = getRound(m, 32);
+	int threadsPerBlock = 128;
+	int numBlocks = 65535;
+	int inter = getRound(n, numBlocks);
+
+	get_mu<<<numBlocks, threadsPerBlock, shared_mem_size>>>(A_dev, M_dev, m, n, iter);
+
+	checkCudaErrors(cudaGetLastError());
+
+	//sprawdzenie wartoœci - kopiowanie do cpu - to w przyszlosci zostanie usuniête
+	nifti_data_type *MU = (nifti_data_type*) malloc(n*sizeof(nifti_data_type));
+	checkCudaErrors(cudaMemcpy(MU, MU_dev, n*sizeof(nifti_data_type), cudaMemcpyDeviceToHost));
+	
+	std::ofstream mu_file;
+	mu_file.open("mu_file.txt");
+
+	for (i=0; i<n; i++){
+		mu_file << MU[i] << "\n";
+	}
+
+	mu_file.close();
+
+	free(MU);
+	/* koniec obliczania wartoœci mu */
 
 	S = (nifti_data_type*) malloc(min * sizeof(nifti_data_type));
 	checkCudaErrors(cudaMalloc(&S_dev, min * sizeof(nifti_data_type)));
@@ -89,7 +153,7 @@ void runPCA(nifti_data_type * A, int m, int n){
 	checkCudaErrors(cudaEventCreate(&stop));
 	checkCudaErrors(cudaEventRecord(start, 0));
 
-    status = culaDeviceDgesvd(jobu, jobvt, m, n, A, lda, S, U, ldu, VT, ldvt);
+    status = culaDeviceDgesvd(jobu, jobvt, m, n, A_dev, lda, S_dev, U_dev, ldu, VT_dev, ldvt);
     checkStatus(status);
 
 	checkCudaErrors(cudaGetLastError());
@@ -101,8 +165,7 @@ void runPCA(nifti_data_type * A, int m, int n){
 
 	// transfer data from gpu to host memory
 	checkCudaErrors(cudaMemcpy(S, S_dev, min*sizeof(nifti_data_type), cudaMemcpyDeviceToHost));
-	
-	int i, j;
+
 	// read result data
 	// reading S diagonal
 	
@@ -154,9 +217,10 @@ void runPCA(nifti_data_type * A, int m, int n){
 
 	//free memory
 	
-	checkCudaErrors(cudaFree(A_dev));
 	free(S);
+	checkCudaErrors(cudaFree(A_dev));
 	checkCudaErrors(cudaFree(S_dev));
+	checkCudaErrors(cudaFree(MU_dev));
 
 	if (jobu != 'O' && jobu != 'N'){
 		free(U);
