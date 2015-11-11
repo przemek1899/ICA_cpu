@@ -102,9 +102,10 @@ void runPCA(nifti_data_type * A, int m, int n){
 	int shared_mem_size = getRound(m, 32);
 	int threadsPerBlock = 128;
 	int numBlocks = 65535;
-	int inter = getRound(n, numBlocks);
+	int iter = getRound(n, numBlocks);
+	printf("shared memory size is %d and iter %d\n", shared_mem_size, iter);
 
-	get_mu<<<numBlocks, threadsPerBlock, shared_mem_size>>>(A_dev, M_dev, m, n, iter);
+	get_mu<<<numBlocks, threadsPerBlock, shared_mem_size>>>(A_dev, MU_dev, m, n, iter);
 
 	checkCudaErrors(cudaGetLastError());
 
