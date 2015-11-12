@@ -1,5 +1,24 @@
 Recommended links to read
 
+- CUDA GTC TALKS:
+
+http://on-demand-gtc.gputechconf.com/gtcnew/on-demand-gtc.php#2354
+
+- CUDA profiler:
+
+http://docs.nvidia.com/cuda/profiler-users-guide/#axzz3rCEZyOxl
+
+- CUDA shuffle instructions:
+
+http://devblogs.nvidia.com/parallelforall/faster-parallel-reductions-kepler/
+http://devblogs.nvidia.com/parallelforall/cuda-pro-tip-kepler-shuffle/
+
+- CUDA Sharem memory bank conflicts:
+
+http://devblogs.nvidia.com/parallelforall/using-shared-memory-cuda-cc/
+http://stackoverflow.com/questions/28374796/bank-conflict-cuda-shared-memory
+http://cuda-programming.blogspot.com.es/2013/02/bank-conflicts-in-shared-memory-in-cuda.html
+https://www.youtube.com/watch?v=CZgM3DEBplE
 
 - About fmri
 
