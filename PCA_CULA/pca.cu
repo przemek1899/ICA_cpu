@@ -20,6 +20,25 @@ int getRound(int m, int n){
 		return (m/n) * n + n;
 }
 
+
+__global__ void mu_shuffle(nifti_data_type * A, int m, int n, int iter){
+
+}
+
+__gloabl__ void test_shuffle_reduce() {
+
+	int laneId = threadIdx.x & 0x1f;
+	int value = 31 - laneId;
+
+	// Use XOR to perform butterfly shuffle
+	for(unsigned int i=16; i>=1; i/=2){
+		value += __shuffle_xor(value, i, 32);
+	}
+	// "value" now contains the sum across all threads 
+	printf("Thread %d final value = %d\n", threadIdx.x, value);
+}
+
+
 __global__ void get_mu(nifti_data_type * A, int m, int n, int iter){
 
 	// in this version thera are not yet weights, not needed now
@@ -96,6 +115,10 @@ void runPCA(nifti_data_type * A, int m, int n){
 	int min = imin(m,n);	
 	int i;
 
+	warpReduce<<< 1, 32 >>>(); 
+	cudaDeviceSynchronize(); 
+	checkCudaErrors(cudaGetLastError());
+
 	nifti_data_type *S, *U, *VT;
 	nifti_data_type *A_dev, *MU_dev, *S_dev, *U_dev, *VT_dev;
 
@@ -105,7 +128,7 @@ void runPCA(nifti_data_type * A, int m, int n){
 	/* obliczanie wartoœci mu */
 	//checkCudaErrors(cudaMalloc(&MU_dev, n*sizeof(nifti_data_type)));
 
-	int shared_mem_size = getRound(m, 32)*sizeof(nifti_data_type)p;
+	int shared_mem_size = getRound(m, 32)*sizeof(nifti_data_type);
 	int threadsPerBlock = 128;
 	int numBlocks = 65535;
 	int iter = getRound(n, numBlocks) / numBlocks;
