@@ -66,8 +66,8 @@ int main(int argc, char * argv[] ){
 		}
 	}
 	int temp = n;
-	n = m;
-	m = temp;
+	//n = m;
+	//m = temp;
 	
 	// 2 wersja z kolejnymi zapisami
 	/*

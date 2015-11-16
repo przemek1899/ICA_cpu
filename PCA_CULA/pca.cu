@@ -131,10 +131,6 @@ void runPCA(nifti_data_type * A, int m, int n){
 	int min = imin(m,n);	
 	int i;
 
-	test_shuffle_reduce<<< 1, 32 >>>(); 
-	cudaDeviceSynchronize(); 
-	checkCudaErrors(cudaGetLastError());
-
 	nifti_data_type *S, *U, *VT;
 	nifti_data_type *A_dev, *MU_dev, *S_dev, *U_dev, *VT_dev;
 
@@ -152,15 +148,8 @@ void runPCA(nifti_data_type * A, int m, int n){
 
 	cudaEvent_t start, stop;
 	float elapsedTime;
-	checkCudaErrors(cudaEventCreate(&start));
-	checkCudaErrors(cudaEventCreate(&stop));
-	checkCudaErrors(cudaEventRecord(start, 0));
 
-	get_mu<<<numBlocks, threadsPerBlock, shared_mem_size>>>(A_dev, m, n, iter);
-
-	checkCudaErrors(cudaEventRecord(stop, 0));
-	checkCudaErrors(cudaEventSynchronize(stop));
-	checkCudaErrors(cudaEventElapsedTime(&elapsedTime, start, stop));
+	//get_mu<<<numBlocks, threadsPerBlock, shared_mem_size>>>(A_dev, m, n, iter);
 
 	checkCudaErrors(cudaGetLastError());
 	/*
@@ -186,10 +175,17 @@ void runPCA(nifti_data_type * A, int m, int n){
 	}
 
 	/* Perform singular value decomposition CULA */
-    printf("Performing singular value decomposition using CULA ... ");
+    
+	checkCudaErrors(cudaEventCreate(&start));
+	checkCudaErrors(cudaEventCreate(&stop));
+	checkCudaErrors(cudaEventRecord(start, 0));
 
     status = culaDeviceDgesvd(jobu, jobvt, m, n, A_dev, lda, S_dev, U_dev, ldu, VT_dev, ldvt);
     checkStatus(status);
+
+	checkCudaErrors(cudaEventRecord(stop, 0));
+	checkCudaErrors(cudaEventSynchronize(stop));
+	checkCudaErrors(cudaEventElapsedTime(&elapsedTime, start, stop));
 
 	checkCudaErrors(cudaGetLastError());
 
@@ -215,7 +211,7 @@ void runPCA(nifti_data_type * A, int m, int n){
 		checkCudaErrors(cudaFree(VT_dev));
 	}
 
-	checkCudaErrors(cudaDeviceReset()); // dla debuggera
+	//checkCudaErrors(cudaDeviceReset()); // dla debuggera
 	
 	printf("Calculete mu-only time: %f ms\n", elapsedTime);
 	return;
