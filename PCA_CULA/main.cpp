@@ -50,8 +50,8 @@ int main(int argc, char * argv[] ){
 	*/
 
 	// production version 
-	std::ofstream column;
-	column.open("Column.txt");
+	//std::ofstream column;
+	//column.open("Column.txt");
 	
 	nifti_data_type *data = (nifti_data_type*) malloc(sizeof(nifti_data_type)*mn);
 
@@ -60,6 +60,7 @@ int main(int argc, char * argv[] ){
     // dwie wersje transpozycji macierzy
 
 	// 1 wersja z kolejnymi odczytami 
+	/*
 	for(i = 0; i < n; i++){
 		for(j = 0; j < m; j++){
 			data[n*j + i] = (nifti_data_type) bf[i*m + j];
@@ -68,24 +69,24 @@ int main(int argc, char * argv[] ){
 	int temp = n;
 	//n = m;
 	//m = temp;
+	*/
 	
 	// 2 wersja z kolejnymi zapisami
 	/*
 	for(i = 0; i < mn; i++){
 		int index = 
 		data[i] = (nifti_data_type) bf[];
-	}
+	}*/
 	
 
 	// kopiowanie danych bez transpozycji maciezrzy
 	for(i=0; i < mn; i++){
-		data[i] = (nifti_data_tfype) bf[i];
-		if (i < v){
+		data[i] = (nifti_data_type) bf[i];
+		/*if (i < v){
 			printf("%d:  %f\n", i+1, data[i]);
-		}
+		}*/
 	}
-	column.close();
-	*/
+	//column.close();
 
 	FslClose(fslio);
 

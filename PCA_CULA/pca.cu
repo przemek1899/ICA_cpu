@@ -192,7 +192,7 @@ void runPCA(nifti_data_type * A, int m, int n){
     checkStatus(status);
 
 	//printf("Calculete transpose-only time: %f ms\n", elapsedTime);
-	checkCudaErrors(cudaFree(AT_dev));
+	
 
 	/* obliczanie wartoœci mu */
 	checkCudaErrors(cudaMalloc(&MU_dev, m*sizeof(nifti_data_type)));
@@ -207,7 +207,7 @@ void runPCA(nifti_data_type * A, int m, int n){
 	checkCudaErrors(cudaEventCreate(&stop));
 	checkCudaErrors(cudaEventRecord(start, 0));
 	
-	get_mu<<<numBlocks, threadsPerBlock, shared_mem_size>>>(AT_dev, m, n, iter, MU_dev);
+	get_mu<<<numBlocks, threadsPerBlock, shared_mem_size>>>(AT_dev, n, m, iter, MU_dev);
 	//get_mu<<<numBlocks, threadsPerBlock, shared_mem_size>>>(A_dev, m, n, iter);
 	checkCudaErrors(cudaDeviceSynchronize());
 
@@ -217,11 +217,12 @@ void runPCA(nifti_data_type * A, int m, int n){
 	checkCudaErrors(cudaEventSynchronize(stop));
 	checkCudaErrors(cudaEventElapsedTime(&elapsedTime, start, stop));
 
+	checkCudaErrors(cudaFree(AT_dev));
 	printf("Calculete mu-only time: %f ms\n", elapsedTime);
 	
 	//sprawdzenie wartoœci - kopiowanie do cpu - to w przyszlosci zostanie usuniête
-	nifti_data_type *MU = (nifti_data_type*) malloc(n*sizeof(nifti_data_type));
-	checkCudaErrors(cudaMemcpy(MU, MU_dev, n*sizeof(nifti_data_type), cudaMemcpyDeviceToHost));
+	nifti_data_type *MU = (nifti_data_type*) malloc(max*sizeof(nifti_data_type));
+	checkCudaErrors(cudaMemcpy(MU, MU_dev, max*sizeof(nifti_data_type), cudaMemcpyDeviceToHost));
 	
 	// reading & writing mu array - 
 	print_matrix_data(MU, m, 0, 1, "mu_transpose_file.txt");
