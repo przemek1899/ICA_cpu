@@ -20,6 +20,13 @@ int getRound(int m, int n){
 		return (m/n) * n + n;
 }
 
+__device__ int deviceGetRound(int m, int n){
+
+	if (m % n == 0)
+		return m;
+	return (m/n) * n + n;
+}
+
 
 __device__ __inline__ double shfl_double(double x, int laneId){
 
@@ -132,10 +139,30 @@ void runPCA(nifti_data_type * A, int m, int n){
 	int i;
 
 	nifti_data_type *S, *U, *VT;
-	nifti_data_type *A_dev, *MU_dev, *S_dev, *U_dev, *VT_dev;
+	nifti_data_type *A_dev, *AT_dev, *MU_dev, *S_dev, *U_dev, *VT_dev;
 
 	checkCudaErrors(cudaMalloc(&A_dev, m*n*sizeof(nifti_data_type)));
 	checkCudaErrors(cudaMemcpy(A_dev, A, m*n*sizeof(nifti_data_type), cudaMemcpyHostToDevice));
+
+	cudaEvent_t start, stop;
+	float elapsedTime;
+
+	// transpozycja macierzy A w celu obliczenia mu
+	
+	checkCudaErrors(cudaEventCreate(&start));
+	checkCudaErrors(cudaEventCreate(&stop));
+	checkCudaErrors(cudaEventRecord(start, 0));
+
+	checkCudaErrors(cudaMalloc(&AT_dev, m*n*sizeof(nifti_data_type)));
+	status = culaDeviceDgeTranspose(m, n, A_dev, m, AT_dev, n);
+    checkStatus(status);
+
+	checkCudaErrors(cudaEventRecord(stop, 0));
+	checkCudaErrors(cudaEventSynchronize(stop));
+	checkCudaErrors(cudaEventElapsedTime(&elapsedTime, start, stop));
+
+	printf("Calculete transpose-only time: %f ms\n", elapsedTime);
+	checkCudaErrors(cudaFree(AT_dev));
 
 	/* obliczanie wartoœci mu */
 	//checkCudaErrors(cudaMalloc(&MU_dev, n*sizeof(nifti_data_type)));
@@ -144,10 +171,8 @@ void runPCA(nifti_data_type * A, int m, int n){
 	int threadsPerBlock = 128;
 	int numBlocks = 65535;
 	int iter = getRound(n, numBlocks) / numBlocks;
-	printf("shared memory size is %d and iter %d\n", shared_mem_size, iter);
 
-	cudaEvent_t start, stop;
-	float elapsedTime;
+	
 
 	//get_mu<<<numBlocks, threadsPerBlock, shared_mem_size>>>(A_dev, m, n, iter);
 
@@ -176,16 +201,9 @@ void runPCA(nifti_data_type * A, int m, int n){
 
 	/* Perform singular value decomposition CULA */
     
-	checkCudaErrors(cudaEventCreate(&start));
-	checkCudaErrors(cudaEventCreate(&stop));
-	checkCudaErrors(cudaEventRecord(start, 0));
 
     status = culaDeviceDgesvd(jobu, jobvt, m, n, A_dev, lda, S_dev, U_dev, ldu, VT_dev, ldvt);
     checkStatus(status);
-
-	checkCudaErrors(cudaEventRecord(stop, 0));
-	checkCudaErrors(cudaEventSynchronize(stop));
-	checkCudaErrors(cudaEventElapsedTime(&elapsedTime, start, stop));
 
 	checkCudaErrors(cudaGetLastError());
 
@@ -216,3 +234,37 @@ void runPCA(nifti_data_type * A, int m, int n){
 	printf("Calculete mu-only time: %f ms\n", elapsedTime);
 	return;
 }
+
+
+/*
+#define TILE_DIM    16
+#define BLOCK_ROWS  16
+
+__global__ void transpose_matrix(nifti_data_type * odata, nifti_data_type * idata, int height, int width){
+
+	__shared__ nifti_data_type tile[];
+
+	int y_diff = deviceGetRound(height, blockDim.y);
+
+	int xIndex = blockIdx.x * TILE_DIM + threadIdx.x;
+    int yIndex = blockIdx.y * TILE_DIM + threadIdx.y;
+    int index_in = xIndex + (yIndex)*width;
+
+    xIndex = blockIdx.y * TILE_DIM + threadIdx.x;
+    yIndex = blockIdx.x * TILE_DIM + threadIdx.y;
+    int index_out = xIndex + (yIndex)*height;
+
+    for (int i=0; i<TILE_DIM; i+=BLOCK_ROWS)
+    {
+        tile[threadIdx.y+i][threadIdx.x] = idata[index_in+i*width];
+    }
+
+    __syncthreads();
+
+	
+    for (int i=0; i<TILE_DIM; i+=BLOCK_ROWS)
+    {
+        odata[index_out+i*height] = tile[threadIdx.x][threadIdx.y+i];
+    }
+}
+*/
