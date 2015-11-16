@@ -21,18 +21,34 @@ int getRound(int m, int n){
 }
 
 
+__device__ __inline__ double shfl_double(double x, int laneId){
+
+	// Split the double number into 2 32b registers
+	int lo, hi;
+	asm volatile("mov.b32 {%0, %1}, %2;" : "=r"(lo), "=r" (hi) : "d"(x));
+
+	// shuffle the 32b registers
+	lo = __shfl(lo, laneId);
+	hi = __shfl(hi, laneId);
+
+	// recreate the 64b number
+	asm volatile("mov.b64 %0, {%1, %2};" : "=d"(x) : "r"(lo), "r"(hi));
+
+	return x;
+}
+
 __global__ void mu_shuffle(nifti_data_type * A, int m, int n, int iter){
 
 }
 
-__gloabl__ void test_shuffle_reduce() {
+__global__ void test_shuffle_reduce() {
 
 	int laneId = threadIdx.x & 0x1f;
 	int value = 31 - laneId;
 
 	// Use XOR to perform butterfly shuffle
 	for(unsigned int i=16; i>=1; i/=2){
-		value += __shuffle_xor(value, i, 32);
+		value += __shfl_xor(value, i, 32);
 	}
 	// "value" now contains the sum across all threads 
 	printf("Thread %d final value = %d\n", threadIdx.x, value);
@@ -115,7 +131,7 @@ void runPCA(nifti_data_type * A, int m, int n){
 	int min = imin(m,n);	
 	int i;
 
-	warpReduce<<< 1, 32 >>>(); 
+	test_shuffle_reduce<<< 1, 32 >>>(); 
 	cudaDeviceSynchronize(); 
 	checkCudaErrors(cudaGetLastError());
 

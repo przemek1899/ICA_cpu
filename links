@@ -1,5 +1,9 @@
 Recommended links to read
 
+- CUDA atomic operations:
+
+http://www.drdobbs.com/parallel/atomic-operations-and-low-wait-algorithm/240160177
+
 - CUDA GTC TALKS:
 
 http://on-demand-gtc.gputechconf.com/gtcnew/on-demand-gtc.php#2354
@@ -27,6 +31,7 @@ https://en.wikipedia.org/wiki/Statistical_parametric_mapping
 
 - About floating point IEEE 754 standard
 
+http://docs.oracle.com/cd/E19957-01/806-3568/ncg_goldberg.html
 https://simple.wikipedia.org/wiki/Signed_number_representations
 https://en.wikipedia.org/wiki/IEEE_floating_point
 http://www.informit.com/articles/article.aspx?p=2103809&seqNum=3

@@ -1,4 +1,4 @@
-//#include "helper_timer.h"
+#include "helper_timer.h"
 #include "pca.cuh"
 #include <fslio.h>
 #include <fstream>
@@ -89,16 +89,16 @@ int main(int argc, char * argv[] ){
 
 	FslClose(fslio);
 
-	/*
+	
 	StopWatchInterface *timer = NULL;
 	sdkCreateTimer(&timer);
-	sdkStartTimer(&timer);*/
+	sdkStartTimer(&timer);
 	
 	runPCA(data, m, n); //x*y*z, v
 
-	//sdkStopTimer(&timer);
-	//printf("Processing time: %f ms\n", sdkGetTimerValue(&timer));
-	//sdkDeleteTimer(&timer);
+	sdkStopTimer(&timer);
+	printf("Processing time: %f ms\n", sdkGetTimerValue(&timer));
+	sdkDeleteTimer(&timer);
 
 	free(data);
 	return 0;
