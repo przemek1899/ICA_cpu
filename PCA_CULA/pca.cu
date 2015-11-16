@@ -9,7 +9,7 @@
 #include <cula_lapack_device.h>
 #include "pca.cuh"
 #include <fstream>
-#include "my_utils.h"
+#include <iostream>
 
 #define imin(X, Y)  ((X) < (Y) ? (X) : (Y))
 
@@ -280,3 +280,35 @@ __global__ void transpose_matrix(nifti_data_type * odata, nifti_data_type * idat
     }
 }
 */
+
+void print_matrix_data(double * Matrix, int n, int print_to_shell, int write_to_file, const char * filename){
+
+	if (write_to_file && print_to_shell){
+		std::ofstream file_data;
+		file_data.open(filename);
+
+		for(int i=0; i < n; i++){
+			std::cout << Matrix[i] << std::endl;
+			file_data << Matrix[i] << "\n";
+		}
+
+		file_data.close();
+	}
+	else if(write_to_file){
+		std::ofstream file_data;
+		file_data.open(filename);
+
+		for(int i=0; i < n; i++){
+			file_data << Matrix[i] << "\n";
+		}
+
+		file_data.close();
+	}
+	else if(print_to_shell){
+		for(int i=0; i < n; i++){
+			std::cout << Matrix[i] << std::endl;
+		}
+	}
+
+	return;
+}
