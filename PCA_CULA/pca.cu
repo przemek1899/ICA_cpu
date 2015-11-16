@@ -9,6 +9,7 @@
 #include <cula_lapack_device.h>
 #include "pca.cuh"
 #include <fstream>
+#include "my_utils.h"
 
 #define imin(X, Y)  ((X) < (Y) ? (X) : (Y))
 
@@ -62,7 +63,7 @@ __global__ void test_shuffle_reduce() {
 }
 
 
-__global__ void get_mu(nifti_data_type * A, int m, int n, int iter){
+__global__ void get_mu(nifti_data_type * A, int m, int n, int iter, nifti_data_type* MU){
 
 	// in this version thera are not yet weights, not needed now
 	extern __shared__ nifti_data_type Ash[];
@@ -91,10 +92,13 @@ __global__ void get_mu(nifti_data_type * A, int m, int n, int iter){
 				}
 				__syncthreads();
 			}
-
+			/*
 			int mean = Ash[0] / m;
 			if (tid < m){
 				A[globalDataIndex] -= mean;
+			}*/
+			if (tid == 0 ){
+				MU[columnIndex] = Ash[0] / m;
 			}
 		}
 	}
@@ -165,24 +169,34 @@ void runPCA(nifti_data_type * A, int m, int n){
 	checkCudaErrors(cudaFree(AT_dev));
 
 	/* obliczanie wartoœci mu */
-	//checkCudaErrors(cudaMalloc(&MU_dev, n*sizeof(nifti_data_type)));
+	checkCudaErrors(cudaMalloc(&MU_dev, n*sizeof(nifti_data_type)));
 
 	int shared_mem_size = getRound(m, 32)*sizeof(nifti_data_type);
 	int threadsPerBlock = 128;
 	int numBlocks = 65535;
 	int iter = getRound(n, numBlocks) / numBlocks;
 
+	checkCudaErrors(cudaEventCreate(&start));
+	checkCudaErrors(cudaEventCreate(&stop));
+	checkCudaErrors(cudaEventRecord(start, 0));
 	
-
+	get_mu<<<numBlocks, threadsPerBlock, shared_mem_size>>>(A_dev, m, n, iter, MU_dev);
 	//get_mu<<<numBlocks, threadsPerBlock, shared_mem_size>>>(A_dev, m, n, iter);
 
 	checkCudaErrors(cudaGetLastError());
-	/*
-	//sprawdzenie wartoœci - kopiowanie do cpu - to w przyszlosci zostanie usuniête
-	//nifti_data_type *MU = (nifti_data_type*) malloc(n*sizeof(nifti_data_type));
-	//checkCudaErrors(cudaMemcpy(MU, MU_dev, n*sizeof(nifti_data_type), cudaMemcpyDeviceToHost));
+
+	checkCudaErrors(cudaEventRecord(stop, 0));
+	checkCudaErrors(cudaEventSynchronize(stop));
+	checkCudaErrors(cudaEventElapsedTime(&elapsedTime, start, stop));
+
+	printf("Calculete mu-only time: %f ms\n", elapsedTime);
 	
-	// reading & writing mu array - print_matrix_data(MU, n, 0, 1, "mu_file.txt");
+	//sprawdzenie wartoœci - kopiowanie do cpu - to w przyszlosci zostanie usuniête
+	nifti_data_type *MU = (nifti_data_type*) malloc(n*sizeof(nifti_data_type));
+	checkCudaErrors(cudaMemcpy(MU, MU_dev, n*sizeof(nifti_data_type), cudaMemcpyDeviceToHost));
+	
+	// reading & writing mu array - 
+	print_matrix_data(MU, m, 0, 1, "mu_transpose_file.txt");
 
 	free(MU);
 	/* koniec obliczania wartoœci mu */
@@ -218,7 +232,7 @@ void runPCA(nifti_data_type * A, int m, int n){
 	free(S);
 	checkCudaErrors(cudaFree(A_dev));
 	checkCudaErrors(cudaFree(S_dev));
-	//checkCudaErrors(cudaFree(MU_dev));
+	checkCudaErrors(cudaFree(MU_dev));
 
 	if (jobu != 'O' && jobu != 'N'){
 		free(U);
@@ -230,8 +244,6 @@ void runPCA(nifti_data_type * A, int m, int n){
 	}
 
 	//checkCudaErrors(cudaDeviceReset()); // dla debuggera
-	
-	printf("Calculete mu-only time: %f ms\n", elapsedTime);
 	return;
 }
 
