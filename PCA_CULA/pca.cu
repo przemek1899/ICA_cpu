@@ -12,6 +12,7 @@
 #include <iostream>
 
 #define imin(X, Y)  ((X) < (Y) ? (X) : (Y))
+#define imax(X, Y)  ((X) > (Y) ? (X) : (Y))
 
 void print_matrix_data(double * Matrix, int n, int print_to_shell, int write_to_file, const char * filename){
 
@@ -109,7 +110,7 @@ __global__ void get_mu(nifti_data_type * A, int m, int n, int iter, nifti_data_t
 		int columnIndex = blockIdx.x + i * gridDim.x;
 		int globalDataIndex = index - blockIdx.x * difference + i * gridDim.x * m;
 		if (columnIndex < n){
-
+			
 			Ash[tid] = 0.0; // initialize all to zeros (padding the rest of elements which are not part of array
 			// each thread loads one element from global memory to shared memory
 			if (tid < m){
@@ -124,11 +125,11 @@ __global__ void get_mu(nifti_data_type * A, int m, int n, int iter, nifti_data_t
 				}
 				__syncthreads();
 			}
-			/*
-			int mean = Ash[0] / m;
-			if (tid < m){
-				A[globalDataIndex] -= mean;
-			}*/
+			
+			//int mean = Ash[0] / m;
+			//if (tid < m){
+			//	A[globalDataIndex] -= mean;
+			//}
 			if (tid == 0 ){
 				MU[columnIndex] = Ash[0] / m;
 			}
@@ -171,7 +172,8 @@ void runPCA(nifti_data_type * A, int m, int n){
 	int lda = m;
     int ldu = m;
     int ldvt = n;
-	int min = imin(m,n);	
+	int min = imin(m,n);
+	int max = imax(m,n);
 	int i;
 
 	nifti_data_type *S, *U, *VT;
@@ -201,18 +203,19 @@ void runPCA(nifti_data_type * A, int m, int n){
 	checkCudaErrors(cudaFree(AT_dev));
 
 	/* obliczanie wartoœci mu */
-	checkCudaErrors(cudaMalloc(&MU_dev, n*sizeof(nifti_data_type)));
+	checkCudaErrors(cudaMalloc(&MU_dev, m*sizeof(nifti_data_type)));
 
-	int shared_mem_size = getRound(m, 32)*sizeof(nifti_data_type);
+	int shared_mem_size = getRound(min, 32)*sizeof(nifti_data_type);
 	int threadsPerBlock = 128;
 	int numBlocks = 65535;
-	int iter = getRound(n, numBlocks) / numBlocks;
+	int iter = getRound(max, numBlocks) / numBlocks;
+	printf("shared mem size %d, iter %d\n", shared_mem_size, iter);
 
 	checkCudaErrors(cudaEventCreate(&start));
 	checkCudaErrors(cudaEventCreate(&stop));
 	checkCudaErrors(cudaEventRecord(start, 0));
 	
-	get_mu<<<numBlocks, threadsPerBlock, shared_mem_size>>>(A_dev, m, n, iter, MU_dev);
+	get_mu<<<numBlocks, threadsPerBlock, shared_mem_size>>>(AT_dev, m, n, iter, MU_dev);
 	//get_mu<<<numBlocks, threadsPerBlock, shared_mem_size>>>(A_dev, m, n, iter);
 
 	checkCudaErrors(cudaGetLastError());
