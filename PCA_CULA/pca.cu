@@ -187,19 +187,11 @@ void runPCA(nifti_data_type * A, int m, int n){
 
 	// transpozycja macierzy A w celu obliczenia mu
 	
-	checkCudaErrors(cudaEventCreate(&start));
-	checkCudaErrors(cudaEventCreate(&stop));
-	checkCudaErrors(cudaEventRecord(start, 0));
-
 	checkCudaErrors(cudaMalloc(&AT_dev, m*n*sizeof(nifti_data_type)));
 	status = culaDeviceDgeTranspose(m, n, A_dev, m, AT_dev, n);
     checkStatus(status);
 
-	checkCudaErrors(cudaEventRecord(stop, 0));
-	checkCudaErrors(cudaEventSynchronize(stop));
-	checkCudaErrors(cudaEventElapsedTime(&elapsedTime, start, stop));
-
-	printf("Calculete transpose-only time: %f ms\n", elapsedTime);
+	//printf("Calculete transpose-only time: %f ms\n", elapsedTime);
 	checkCudaErrors(cudaFree(AT_dev));
 
 	/* obliczanie wartoœci mu */
@@ -217,6 +209,7 @@ void runPCA(nifti_data_type * A, int m, int n){
 	
 	get_mu<<<numBlocks, threadsPerBlock, shared_mem_size>>>(AT_dev, m, n, iter, MU_dev);
 	//get_mu<<<numBlocks, threadsPerBlock, shared_mem_size>>>(A_dev, m, n, iter);
+	checkCudaErrors(cudaDeviceSynchronize());
 
 	checkCudaErrors(cudaGetLastError());
 
