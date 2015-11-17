@@ -327,7 +327,7 @@ void runPCA(nifti_data_type * A, int m, int n){
 
     status = culaDeviceDgesvd(jobu, jobvt, m, n, AT_dev, lda, S_dev, U_dev, ldu, VT_dev, ldvt);
     checkStatus(status);
-	int new_cols = NUM_COMPONENTS;
+	int new_cols = 20;
 
 	threadsPerBlock = 512;
 	int blocks_per_column = getRound(m, threadsPerBlock) / threadsPerBlock;
@@ -340,12 +340,12 @@ void runPCA(nifti_data_type * A, int m, int n){
 	nifti_data_type * intermediate_results;
 	checkCudaErrors(cudaMalloc(&intermediate_results, blocks_per_column*new_cols*sizeof(nifti_data_type)));
 
-	colsign2<<<grid, threadsPerBlock, shared_mem_size>>>(AT, m, new_cols, intermediate_results, blocks_per_column, new_cols);
+	colsign2<<<grid, threadsPerBlock, shared_mem_size>>>(AT_dev, m, new_cols, intermediate_results, blocks_per_column, new_cols);
 	checkCudaErrors(cudaDeviceSynchronize());
 	checkCudaErrors(cudaGetLastError());
 
 	dim3 grid2(1, grid_x);
-	colsign2<<<grid2, threadsPerBlock, shared_mem_size>>>(get_colsign(intermediate_results, blocks_per_column, new_cols, AT, m, new_cols){
+	get_colsign<<<grid2, threadsPerBlock, shared_mem_size>>>(intermediate_results, blocks_per_column, new_cols, AT, m, new_cols);
 	checkCudaErrors(cudaDeviceSynchronize());
 	checkCudaErrors(cudaGetLastError());
 
