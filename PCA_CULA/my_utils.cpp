@@ -2,15 +2,17 @@
 #include <iostream>
 #include <fstream>
 
-void print_matrix_data(double * Matrix, int n, int print_to_shell, int write_to_file, const char * filename){
+void print_matrix_data(double * Matrix, int m, int n, int print_to_shell, int write_to_file, const char * filename){
 
 	if (write_to_file && print_to_shell){
 		std::ofstream file_data;
 		file_data.open(filename);
 
 		for(int i=0; i < n; i++){
-			std::cout << Matrix[i] << std::endl;
-			file_data << Matrix[i] << "\n";
+			for(int j=0; j<m; j++){
+				std::cout << Matrix[i*m +j] << std::endl;
+				file_data << Matrix[i*m +j] << "\n";
+			}
 		}
 
 		file_data.close();
