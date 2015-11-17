@@ -201,13 +201,13 @@ __global__ void get_mu(nifti_data_type * A, int m, int n, int iter, nifti_data_t
 				__syncthreads();
 			}
 			
-			int mean = Ash[0] / m;
+			nifti_data_type mean = Ash[0] / m;
 			if (tid < m){
 				A[globalDataIndex] -= mean;
 			}
-			//if (tid == 0 ){
-			//	MU[columnIndex] = Ash[0] / m;
-			//}
+			if (tid == 0 ){
+				MU[columnIndex] = mean;
+			}
 		}
 	}
 	
@@ -307,7 +307,7 @@ void runPCA(nifti_data_type * A, int m, int n){
 	checkCudaErrors(cudaMemcpy(MU, MU_dev, max*sizeof(nifti_data_type), cudaMemcpyDeviceToHost));
 	
 	// reading & writing mu array - 
-	//print_matrix_data(MU, m, 0, 1, "mu_transpose_file.txt");
+	print_matrix_data(MU, 1, m, 0, 1, "mu_transpose_file.txt");
 
 	free(MU);
 	/* koniec obliczania wartoœci mu */
