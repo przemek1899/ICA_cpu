@@ -298,8 +298,6 @@ void runPCA(nifti_data_type * A, int m, int n){
 	status = culaDeviceSgeTranspose(n,  m, AT_dev, n, A_dev, m);
     checkStatus(status);
 
-	checkCudaErrors(cudaMemcpy(A, A_dev, m*20*sizeof(nifti_data_type), cudaMemcpyDeviceToHost));
-	print_matrix_data(A, m, 20, 0, 1, "after_mu.txt");
 	printf("Calculete mu-only time: %f ms\n", elapsedTime);
 	
 	//sprawdzenie wartoœci - kopiowanie do cpu - to w przyszlosci zostanie usuniête
@@ -330,6 +328,9 @@ void runPCA(nifti_data_type * A, int m, int n){
     status = culaDeviceSgesvd(jobu, jobvt, m, n, A_dev, lda, S_dev, U_dev, ldu, VT_dev, ldvt);
     checkStatus(status);
 	int new_cols = 20;
+
+	checkCudaErrors(cudaMemcpy(A, AT_dev, m*20*sizeof(nifti_data_type), cudaMemcpyDeviceToHost));
+	print_matrix_data(A, m, 20, 0, 1, "gesvd.txt");
 
 	threadsPerBlock = 512;
 	int blocks_per_column = getRound(m, threadsPerBlock) / threadsPerBlock;
