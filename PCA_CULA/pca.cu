@@ -298,7 +298,8 @@ void runPCA(nifti_data_type * A, int m, int n){
 	status = culaDeviceSgeTranspose(n,  m, AT_dev, n, A_dev, m);
     checkStatus(status);
 
-	print_matrix_data(A_dev, m, 20, 0, 1, "after_mu.txt");
+	checkCudaErrors(cudaMemcpy(A, A_dev, m*20*sizeof(nifti_data_type), cudaMemcpyDeviceToHost));
+	print_matrix_data(A, m, 20, 0, 1, "after_mu.txt");
 	printf("Calculete mu-only time: %f ms\n", elapsedTime);
 	
 	//sprawdzenie wartoœci - kopiowanie do cpu - to w przyszlosci zostanie usuniête
@@ -356,8 +357,8 @@ void runPCA(nifti_data_type * A, int m, int n){
 	checkCudaErrors(cudaEventDestroy(stop));
 
 	nifti_data_type* coeff = (nifti_data_type*) malloc(m*new_cols*sizeof(nifti_data_type));
-	checkCudaErrors(cudaMemcpy(coeff, AT_dev, m*new_cols*sizeof(nifti_data_type), cudaMemcpyDeviceToHost));
-	print_matrix_data(coeff, m, new_cols, 0, 1, "coeff_mat.txt");
+	checkCudaErrors(cudaMemcpy(coeff, A_dev, m*new_cols*sizeof(nifti_data_type), cudaMemcpyDeviceToHost));
+	//print_matrix_data(coeff, m, new_cols, 0, 1, "coeff_mat.txt");
 	free(coeff);
 
 	//checkCudaErrors(cudaMemcpy(S, S_dev, min*sizeof(nifti_data_type), cudaMemcpyDeviceToHost));
