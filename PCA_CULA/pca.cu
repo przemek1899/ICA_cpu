@@ -50,9 +50,9 @@ __global__ void colsign2(nifti_data_type* coeff, int rows, int cols, nifti_data_
 		for (unsigned int s = blockDim.x/2; s>0; s>>=1){
 			if (tid < s){
 				//Ash[tid] += Ash[tid+s];
-				int a = Ash[tid]; int b = Ash[tid+s];
+				nifti_data_type a = Ash[tid]; nifti_data_type b = Ash[tid+s];
 				result = (fabs(a)-fabs(b))>0;
-				Ash[tid] = result * a + fabs(result - 1) * b;
+				Ash[tid] = result * a + fabs((nifti_data_type)result - 1) * b;
 			}
 			__syncthreads();
 		}
@@ -80,9 +80,9 @@ __global__ void get_colsign(nifti_data_type *intmed_results, int rows, int cols,
 	for (unsigned int s = blockDim.x/2; s>0; s>>=1){
 		if (tid < s){
 			//Ash[tid] += Ash[tid+s];
-			int a = Ash[tid]; int b = Ash[tid+s];
+			nifti_data_type a = Ash[tid]; nifti_data_type b = Ash[tid+s];
 			result = (fabs(a)-fabs(b))>0;
-			Ash[tid] = result * a + fabs(result - 1) * b;
+			Ash[tid] = result * a + fabs((nifti_data_type)result - 1) * b;
 		}
 		__syncthreads();
 	}
