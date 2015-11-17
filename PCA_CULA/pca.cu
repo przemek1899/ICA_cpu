@@ -265,7 +265,7 @@ void runPCA(nifti_data_type * A, int m, int n){
 	// transpozycja macierzy A w celu obliczenia mu
 	
 	checkCudaErrors(cudaMalloc(&AT_dev, m*n*sizeof(nifti_data_type)));
-	status = culaDeviceDgeTranspose(m, n, A_dev, m, AT_dev, n);
+	status = culaDeviceSgeTranspose(m, n, A_dev, m, AT_dev, n);
     checkStatus(status);
 
 	//printf("Calculete transpose-only time: %f ms\n", elapsedTime);
@@ -295,7 +295,7 @@ void runPCA(nifti_data_type * A, int m, int n){
 
 	// transpozycja macierzy AT po obliczenia mu
 	
-	status = culaDeviceDgeTranspose(n,  m, AT_dev, n, A_dev, m);
+	status = culaDeviceSgeTranspose(n,  m, AT_dev, n, A_dev, m);
     checkStatus(status);
 
 	printf("Calculete mu-only time: %f ms\n", elapsedTime);
@@ -325,7 +325,7 @@ void runPCA(nifti_data_type * A, int m, int n){
 	/* Perform singular value decomposition CULA */
 	/* coeff = U_dev (m x min)  */
 
-    status = culaDeviceDgesvd(jobu, jobvt, m, n, AT_dev, lda, S_dev, U_dev, ldu, VT_dev, ldvt);
+    status = culaDeviceSgesvd(jobu, jobvt, m, n, AT_dev, lda, S_dev, U_dev, ldu, VT_dev, ldvt);
     checkStatus(status);
 	int new_cols = 20;
 
@@ -345,11 +345,11 @@ void runPCA(nifti_data_type * A, int m, int n){
 	checkCudaErrors(cudaGetLastError());
 
 	dim3 grid2(1, grid_x);
-	get_colsign<<<grid2, threadsPerBlock, shared_mem_size>>>(intermediate_results, blocks_per_column, new_cols, AT, m, new_cols);
+	get_colsign<<<grid2, threadsPerBlock, shared_mem_size>>>(intermediate_results, blocks_per_column, new_cols, AT_dev, m, new_cols);
 	checkCudaErrors(cudaDeviceSynchronize());
 	checkCudaErrors(cudaGetLastError());
 
-	checkCudaErrors(cudaFree(intermediate_results))
+	checkCudaErrors(cudaFree(intermediate_results));
 
 	checkCudaErrors(cudaEventDestroy(start));
 	checkCudaErrors(cudaEventDestroy(stop));
