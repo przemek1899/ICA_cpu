@@ -102,7 +102,7 @@ __global__ void get_colsign(nifti_data_type *intmed_results, int rows, int cols,
 }
 
 
-void print_matrix_data(double * Matrix, int m, int n, int print_to_shell, int write_to_file, const char * filename){
+void print_matrix_data(float * Matrix, int m, int n, int print_to_shell, int write_to_file, const char * filename){
 
 	if (write_to_file && print_to_shell){
 		std::ofstream file_data;
@@ -121,7 +121,7 @@ void print_matrix_data(double * Matrix, int m, int n, int print_to_shell, int wr
 
 		for(int i=0; i < n; i++){
 			for(int j=0; j<m; j++){
-				file_data << Matrix[i*m +j];
+				file_data << Matrix[i*m +j] << " ";
 			}
 			file_data << "\n";
 		}
@@ -298,6 +298,7 @@ void runPCA(nifti_data_type * A, int m, int n){
 	status = culaDeviceSgeTranspose(n,  m, AT_dev, n, A_dev, m);
     checkStatus(status);
 
+	print_matrix_data(A_dev, m, 20, 0, 1, "after_mu.txt");
 	printf("Calculete mu-only time: %f ms\n", elapsedTime);
 	
 	//sprawdzenie wartoœci - kopiowanie do cpu - to w przyszlosci zostanie usuniête
@@ -325,7 +326,7 @@ void runPCA(nifti_data_type * A, int m, int n){
 	/* Perform singular value decomposition CULA */
 	/* coeff = U_dev (m x min)  */
 
-    status = culaDeviceSgesvd(jobu, jobvt, m, n, AT_dev, lda, S_dev, U_dev, ldu, VT_dev, ldvt);
+    status = culaDeviceSgesvd(jobu, jobvt, m, n, A_dev, lda, S_dev, U_dev, ldu, VT_dev, ldvt);
     checkStatus(status);
 	int new_cols = 20;
 
@@ -334,18 +335,18 @@ void runPCA(nifti_data_type * A, int m, int n){
 	int grid_x = getRound(new_cols, 32);
 	dim3 grid(blocks_per_column, grid_x);
 
-	shared_mem_size = threadsPerBlock;
+	shared_mem_size = threadsPerBlock*sizeof(nifti_data_type);
 	printf("shared mem size %d, iter %d\n", shared_mem_size);
 
 	nifti_data_type * intermediate_results;
 	checkCudaErrors(cudaMalloc(&intermediate_results, blocks_per_column*new_cols*sizeof(nifti_data_type)));
 
-	colsign2<<<grid, threadsPerBlock, shared_mem_size>>>(AT_dev, m, new_cols, intermediate_results, blocks_per_column, new_cols);
+	colsign2<<<grid, threadsPerBlock, shared_mem_size>>>(A_dev, m, new_cols, intermediate_results, blocks_per_column, new_cols);
 	checkCudaErrors(cudaDeviceSynchronize());
 	checkCudaErrors(cudaGetLastError());
 
 	dim3 grid2(1, grid_x);
-	get_colsign<<<grid2, threadsPerBlock, shared_mem_size>>>(intermediate_results, blocks_per_column, new_cols, AT_dev, m, new_cols);
+	get_colsign<<<grid2, threadsPerBlock, shared_mem_size>>>(intermediate_results, blocks_per_column, new_cols, A_dev, m, new_cols);
 	checkCudaErrors(cudaDeviceSynchronize());
 	checkCudaErrors(cudaGetLastError());
 
