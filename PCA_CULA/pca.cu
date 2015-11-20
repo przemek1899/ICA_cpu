@@ -324,10 +324,11 @@ void runPCA(nifti_data_type * A, int m, int n){
     checkStatus(status);
 	int new_cols = 20;
 
-	S = (nifti_data_type *) malloc(min*sizeof(nifti_data_type));
-	checkCudaErrors(cudaMemcpy(S, S_dev, min*sizeof(nifti_data_type), cudaMemcpyDeviceToHost));
-	print_matrix_data(S, min, 0, 0, 1, "S_matrix.txt");
-	free(S);
+	nifti_data_type* coeff = (nifti_data_type*) malloc(m*new_cols*sizeof(nifti_data_type));
+	checkCudaErrors(cudaMemcpy(coeff, A_dev, m*new_cols*sizeof(nifti_data_type), cudaMemcpyDeviceToHost));
+	print_matrix_data(coeff, m, new_cols, 0, 1, "coeff_mat.txt");
+	//checkCudaErrors(cudaMemcpy(S, S_dev, min*sizeof(nifti_data_type), cudaMemcpyDeviceToHost));
+	//print_matrix_data(S, min, 0, 0, 1, "S_matrix.txt");
 
 	threadsPerBlock = 512;
 	int blocks_per_column = getRound(m, threadsPerBlock) / threadsPerBlock;
@@ -354,9 +355,7 @@ void runPCA(nifti_data_type * A, int m, int n){
 	checkCudaErrors(cudaEventDestroy(start));
 	checkCudaErrors(cudaEventDestroy(stop));
 
-	nifti_data_type* coeff = (nifti_data_type*) malloc(m*new_cols*sizeof(nifti_data_type));
-	checkCudaErrors(cudaMemcpy(coeff, A_dev, m*new_cols*sizeof(nifti_data_type), cudaMemcpyDeviceToHost));
-	//print_matrix_data(coeff, m, new_cols, 0, 1, "coeff_mat.txt");
+	
 	free(coeff);
 	
 	// reading S Matrinx - print_matrix_data(S, min, 1, 1, "Smatrix.txt")
