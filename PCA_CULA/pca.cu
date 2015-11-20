@@ -119,13 +119,19 @@ void print_matrix_data(float * Matrix, int m, int n, int print_to_shell, int wri
 		std::ofstream file_data;
 		file_data.open(filename);
 
-		for(int i=0; i < n; i++){
+		if (n == 0){
 			for(int j=0; j<m; j++){
-				file_data << Matrix[i*m +j] << " ";
+				file_data << Matrix[j] << "\n";
 			}
-			file_data << "\n";
 		}
-
+		else{
+			for(int i=0; i < n; i++){
+				for(int j=0; j<m; j++){
+					file_data << Matrix[i*m +j] << " ";
+				}
+				file_data << "\n";
+			}
+		}
 		file_data.close();
 	}
 	else if(print_to_shell){
@@ -157,22 +163,9 @@ __global__ void mu_shuffle(nifti_data_type * A, int m, int n, int iter){
 
 }
 
-__global__ void test_shuffle_reduce() {
-
-	int laneId = threadIdx.x & 0x1f;
-	int value = 31 - laneId;
-
-	// Use XOR to perform butterfly shuffle
-	for(unsigned int i=16; i>=1; i/=2){
-		value += __shfl_xor(value, i, 32);
-	}
-	// "value" now contains the sum across all threads 
-	printf("Thread %d final value = %d\n", threadIdx.x, value);
-}
-
-
 __global__ void get_mu(nifti_data_type * A, int m, int n, int iter, nifti_data_type* MU){
 
+	// tutaj jest zalozenie z m < n (np. m=121, n=163840)
 	// in this version thera are not yet weights, not needed now
 	extern __shared__ nifti_data_type Ash[];
 	int tid = threadIdx.x;
@@ -277,7 +270,7 @@ void runPCA(nifti_data_type * A, int m, int n){
 	int shared_mem_size = getRound(min, 32)*sizeof(nifti_data_type);
 	int threadsPerBlock = 128;
 	int numBlocks = 65535;
-	int iter = getRound(m, threadsPerBlock) / numBlocks;
+	int iter = getRound(m, numBlocks) / numBlocks;
 	printf("shared mem size %d, iter %d\n", shared_mem_size, iter);
 
 	checkCudaErrors(cudaEventCreate(&start));
@@ -299,17 +292,17 @@ void runPCA(nifti_data_type * A, int m, int n){
 
 	printf("Calculate mu-only time: %f ms\n", elapsedTime);
 	
-	checkCudaErrors(cudaMemcpy(A, A_dev, m*20*sizeof(nifti_data_type), cudaMemcpyDeviceToHost));
-	print_matrix_data(A, m, 20, 0, 1, "A_mu.txt");
+	//checkCudaErrors(cudaMemcpy(A, A_dev, m*20*sizeof(nifti_data_type), cudaMemcpyDeviceToHost));
+	//print_matrix_data(A, m, 20, 0, 1, "A_tt.txt");
 	
 	//sprawdzenie wartoœci - kopiowanie do cpu - to w przyszlosci zostanie usuniête
-	nifti_data_type *MU = (nifti_data_type*) malloc(max*sizeof(nifti_data_type));
-	checkCudaErrors(cudaMemcpy(MU, MU_dev, max*sizeof(nifti_data_type), cudaMemcpyDeviceToHost));
+	// nifti_data_type *MU = (nifti_data_type*) malloc(max*sizeof(nifti_data_type));
+	//checkCudaErrors(cudaMemcpy(MU, MU_dev, max*sizeof(nifti_data_type), cudaMemcpyDeviceToHost));
 	
 	// reading & writing mu array - 
-	print_matrix_data(MU, 1, m, 0, 1, "mu_transpose_file.txt");
+	// print_matrix_data(MU, 1, m, 0, 1, "mu_transpose_file.txt");
 
-	free(MU);
+	// free(MU);
 	/* koniec obliczania wartoœci mu */
 
 	S = (nifti_data_type*) malloc(min * sizeof(nifti_data_type));
@@ -330,6 +323,11 @@ void runPCA(nifti_data_type * A, int m, int n){
     status = culaDeviceSgesvd(jobu, jobvt, m, n, A_dev, lda, S_dev, U_dev, ldu, VT_dev, ldvt);
     checkStatus(status);
 	int new_cols = 20;
+
+	S = (nifti_data_type *) malloc(min*sizeof(nifti_data_type));
+	checkCudaErrors(cudaMemcpy(S, S_dev, min*sizeof(nifti_data_type), cudaMemcpyDeviceToHost));
+	print_matrix_data(S, min, 0, 0, 1, "S_matrix.txt");
+	free(S);
 
 	threadsPerBlock = 512;
 	int blocks_per_column = getRound(m, threadsPerBlock) / threadsPerBlock;
@@ -360,8 +358,6 @@ void runPCA(nifti_data_type * A, int m, int n){
 	checkCudaErrors(cudaMemcpy(coeff, A_dev, m*new_cols*sizeof(nifti_data_type), cudaMemcpyDeviceToHost));
 	//print_matrix_data(coeff, m, new_cols, 0, 1, "coeff_mat.txt");
 	free(coeff);
-
-	//checkCudaErrors(cudaMemcpy(S, S_dev, min*sizeof(nifti_data_type), cudaMemcpyDeviceToHost));
 	
 	// reading S Matrinx - print_matrix_data(S, min, 1, 1, "Smatrix.txt")
 
@@ -384,47 +380,3 @@ void runPCA(nifti_data_type * A, int m, int n){
 	//checkCudaErrors(cudaDeviceReset()); // dla debuggera
 	return;
 }
-
-/*
-__global__ void colsign(nifti_data_type* coeff, int rows, int cols, int iter){
-
-	extern __shared__ nifti_data_type Ash[];
-
-	int tid = threadIdx.x;
-	int difference = blockDim.x - rows;
-	int index = blockIdx.x * blockDim.x + threadIdx.x;
-
-	//#pragma unroll
-	for (int i=0; i<iter; i++){
-
-		int columnIndex = blockIdx.x + i * gridDim.x;
-		int globalDataIndex = index - blockIdx.x * difference + i * gridDim.x * rows;
-		if (columnIndex < cols){
-			
-			Ash[tid] = 0.0; // initialize all to zeros (padding the rest of elements which are not part of array
-			// each thread loads one element from global memory to shared memory
-			if (tid < rows){
-				Ash[tid] = coeff[globalDataIndex];
-			}
-			__syncthreads();
-
-			// find max(abs)
-			int result;
-			for (unsigned int s = blockDim.x/2; s>0; s>>=1){
-				if (tid < s){
-					//Ash[tid] += Ash[tid+s];
-					int a = Ash[tid]; int b = Ash[tid+s];
-					result = (fabs(a)-fabs(b))>0;
-					Ash[tid] = result * a + fabs(result - 1) * b;
-				}
-				__syncthreads();
-			}
-			
-			int sign = Ash[0] > 0;
-			if (sign < 0 && tid < rows){
-				coeff[globalDataIndex] *= -1;//Ash[tid];
-			}
-		}
-	}
-}
-*/
