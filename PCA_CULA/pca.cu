@@ -333,6 +333,10 @@ void runPCA(nifti_data_type * A, int m, int n){
 	//checkCudaErrors(cudaMemcpy(S, S_dev, min*sizeof(nifti_data_type), cudaMemcpyDeviceToHost));
 	//print_matrix_data(S, min, 0, 0, 1, "S_matrix.txt");
 
+	nifti_data_type* coeff = (nifti_data_type*) malloc(m*new_cols*sizeof(nifti_data_type));
+	checkCudaErrors(cudaMemcpy(coeff, A_dev, m*new_cols*sizeof(nifti_data_type), cudaMemcpyDeviceToHost));
+	print_matrix_data(coeff, m, new_cols, 0, 1, "coeff_mat.txt");
+
 	threadsPerBlock = 512;
 	int blocks_per_column = getRound(m, threadsPerBlock) / threadsPerBlock;
 	int grid_x = getRound(new_cols, 32);
@@ -354,7 +358,7 @@ void runPCA(nifti_data_type * A, int m, int n){
 	free(intermediate_results_h);
 
 	//nifti_data_type* maxFindResults = (nifti_data_type*) malloc(new_cols*sizeof(nifti_data_type));
-	//nifti_data_type* maxFindResults_d;
+	nifti_data_type* maxFindResults_d;
 	//checkCudaErrors(cudaMalloc(&maxFindResults_d, new_cols*sizeof(nifti_data_type)));
 
 	dim3 grid2(1, grid_x);
@@ -366,10 +370,6 @@ void runPCA(nifti_data_type * A, int m, int n){
 	//checkCudaErrors(cudaFree(maxFindResults_d));
 	//print_matrix_data(maxFindResults, new_cols, 0, 0, 1, "max_results.txt");
 	//free(maxFindResults);
-
-	nifti_data_type* coeff = (nifti_data_type*) malloc(m*new_cols*sizeof(nifti_data_type));
-	checkCudaErrors(cudaMemcpy(coeff, A_dev, m*new_cols*sizeof(nifti_data_type), cudaMemcpyDeviceToHost));
-	print_matrix_data(coeff, m, new_cols, 0, 1, "coeff_mat.txt");
 
 	checkCudaErrors(cudaEventDestroy(start));
 	checkCudaErrors(cudaEventDestroy(stop));
