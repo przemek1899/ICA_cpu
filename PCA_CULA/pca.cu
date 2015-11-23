@@ -398,7 +398,8 @@ void runPCA(nifti_data_type * A, int m, int n){
 	checkCudaErrors(cudaMalloc(&maxFindResults_d, new_cols*sizeof(nifti_data_type)));
 
 	dim3 grid2(grid_x, 1);
-	get_colsign<<<grid2, threadsPerBlock, shared_mem_size>>>(intermediate_results, blocks_per_column, new_cols, A_dev, m, new_cols, maxFindResults_d);
+	shared_mem_size = blocks_per_column*sizeof(nifti_data_type);
+	get_colsign<<<grid2, blocks_per_column, shared_mem_size>>>(intermediate_results, blocks_per_column, new_cols, A_dev, m, new_cols, maxFindResults_d);
 	checkCudaErrors(cudaDeviceSynchronize());
 	checkCudaErrors(cudaGetLastError());
 
