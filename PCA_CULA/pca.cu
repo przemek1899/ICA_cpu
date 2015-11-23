@@ -107,8 +107,8 @@ __global__ void get_colsign(nifti_data_type *intmed_results, int rows, int cols,
 		for (unsigned i=0; i < iter; i++){
 			//int index = tid + blockDim.x*blockIdx.x + i * gridDim.x;
 			int rowIndex = tid + blockDim.x * i;
-			if (rowIndex < rows){
-				coeff[rowIndex + blockIdx.x*rows] *= sign;
+			if (rowIndex < m_coeff){
+				coeff[rowIndex + blockIdx.x*m_coeff] *= sign;
 			}
 		}
 	}
