@@ -96,16 +96,19 @@ __global__ void get_colsign(nifti_data_type *intmed_results, int rows, int cols,
 	int r = Ash[0] >= 0;
 	int sign = (r == 0)*(-1) + (r > 0);
 	if (tid == 0 && blockIdx.x < cols){
-		maxFindResults_d[blockIdx.x] = Ash[0];
+		maxFindResults_d[blockIdx.x] = sign;
 	}
+
+	// do tego momentu jest dobrze
 
 	//jeden blok - jedna kolumna (w macierzy coeff, wynikowej U z svd, która siedzi w tablicy A)
 	if (blockIdx.x < cols){
 		int iter = deviceGetRound(m_coeff, blockDim.x) / blockDim.x; // m / d³ugoœæ bloku
 		for (unsigned i=0; i < iter; i++){
-			int index = tid + blockDim.x*blockIdx.x + i * gridDim.x;
-			if (index < rows){
-				coeff[index] *= sign;
+			//int index = tid + blockDim.x*blockIdx.x + i * gridDim.x;
+			int rowIndex = tid + blockDim.x * i;
+			if (rowIndex < rows){
+				coeff[rowIndex + blockIdx.x*rows] *= sign;
 			}
 		}
 	}
