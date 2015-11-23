@@ -78,7 +78,7 @@ __global__ void get_colsign(nifti_data_type *intmed_results, int rows, int cols,
 	
 	Ash[tid] = 0.0;
 	if (blockIdx.x < cols){
-		Ash[tid] = intmed_results[tid + cols*blockIdx.x];
+		Ash[tid] = intmed_results[tid + rows*blockIdx.x];
 	}
 
 	// find max(abs)
@@ -95,7 +95,9 @@ __global__ void get_colsign(nifti_data_type *intmed_results, int rows, int cols,
 
 	int r = Ash[0] >= 0;
 	int sign = (r == 0)*(-1) + (r > 0);
-	//maxFindResults_d[] = Ash[0];
+	if (tid == 0 && blockIdx.x < cols){
+		maxFindResults_d[blockIdx.x] = Ash[0];
+	}
 
 	//jeden blok - jedna kolumna (w macierzy coeff, wynikowej U z svd, która siedzi w tablicy A)
 	if (blockIdx.x < cols){
@@ -155,14 +157,14 @@ __device__ __inline__ double shfl_double(double x, int laneId){
 
 	// Split the double number into 2 32b registers
 	int lo, hi;
-	asm volatile("mov.b32 {%0, %1}, %2;" : "=r"(lo), "=r" (hi) : "d"(x));
+	//asm volatile("mov.b32 {%0, %1}, %2;" : "=r"(lo), "=r" (hi) : "d"(x));
 
 	// shuffle the 32b registers
 	lo = __shfl(lo, laneId);
 	hi = __shfl(hi, laneId);
 
 	// recreate the 64b number
-	asm volatile("mov.b64 %0, {%1, %2};" : "=d"(x) : "r"(lo), "r"(hi));
+	//asm volatile("mov.b64 %0, {%1, %2};" : "=d"(x) : "r"(lo), "r"(hi));
 
 	return x;
 }
@@ -391,9 +393,9 @@ void runPCA(nifti_data_type * A, int m, int n){
 	//print_matrix_data(intermediate_results_h, blocks_per_column, new_cols, 0, 1, "intermed_res.txt");
 	//free(intermediate_results_h);
 
-	//nifti_data_type* maxFindResults = (nifti_data_type*) malloc(new_cols*sizeof(nifti_data_type));
+	nifti_data_type* maxFindResults = (nifti_data_type*) malloc(new_cols*sizeof(nifti_data_type));
 	nifti_data_type* maxFindResults_d;
-	//checkCudaErrors(cudaMalloc(&maxFindResults_d, new_cols*sizeof(nifti_data_type)));
+	checkCudaErrors(cudaMalloc(&maxFindResults_d, new_cols*sizeof(nifti_data_type)));
 
 	dim3 grid2(grid_x, 1);
 	get_colsign<<<grid2, threadsPerBlock, shared_mem_size>>>(intermediate_results, blocks_per_column, new_cols, A_dev, m, new_cols, maxFindResults_d);
@@ -404,10 +406,10 @@ void runPCA(nifti_data_type * A, int m, int n){
 	checkCudaErrors(cudaMemcpy(coeff, A_dev, m*new_cols*sizeof(nifti_data_type), cudaMemcpyDeviceToHost));
 	print_matrix_data(coeff, m, new_cols, 0, 1, "coeff_mat.txt");
 
-	//checkCudaErrors(cudaMemcpy(maxFindResults, maxFindResults_d, new_cols*sizeof(nifti_data_type), cudaMemcpyDeviceToHost));
-	//checkCudaErrors(cudaFree(maxFindResults_d));
-	//print_matrix_data(maxFindResults, new_cols, 0, 0, 1, "max_results.txt");
-	//free(maxFindResults);
+	checkCudaErrors(cudaMemcpy(maxFindResults, maxFindResults_d, new_cols*sizeof(nifti_data_type), cudaMemcpyDeviceToHost));
+	checkCudaErrors(cudaFree(maxFindResults_d));
+	print_matrix_data(maxFindResults, new_cols, 0, 0, 1, "max_results.txt");
+	free(maxFindResults);
 
 	checkCudaErrors(cudaEventDestroy(start));
 	checkCudaErrors(cudaEventDestroy(stop));
