@@ -77,8 +77,8 @@ __global__ void get_colsign(nifti_data_type *intmed_results, int rows, int cols,
 	int tid = threadIdx.x;
 	
 	Ash[tid] = 0.0;
-	if (tid < cols){
-		Ash[tid] = intmed_results[tid + cols*blockIdx.y];
+	if (blockIdx.x < cols){
+		Ash[tid] = intmed_results[tid + cols*blockIdx.x];
 	}
 
 	// find max(abs)
@@ -93,13 +93,14 @@ __global__ void get_colsign(nifti_data_type *intmed_results, int rows, int cols,
 		__syncthreads();
 	}
 
-	int r = Ash[0] > 0;
+	int r = Ash[0] >= 0;
 	int sign = (r == 0)*(-1) + (r > 0);
 	//maxFindResults_d[] = Ash[0];
 
-	if (blockIdx.y < cols){
-		int iter = deviceGetRound(m_coeff, blockDim.x) / blockDim.x;
-		for( unsigned i=0; i < iter; i++){
+	//jeden blok - jedna kolumna (w macierzy coeff, wynikowej U z svd, która siedzi w tablicy A)
+	if (blockIdx.x < cols){
+		int iter = deviceGetRound(m_coeff, blockDim.x) / blockDim.x; // m / d³ugoœæ bloku
+		for (unsigned i=0; i < iter; i++){
 			int index = tid + blockDim.x*blockIdx.x + i * gridDim.x;
 			if (index < rows){
 				coeff[index] *= sign;
@@ -166,8 +167,45 @@ __device__ __inline__ double shfl_double(double x, int laneId){
 	return x;
 }
 
-__global__ void mu_shuffle(nifti_data_type * A, int m, int n, int iter){
+__inline__ __device__ double warpDoubleReduce(double val){
+	
+	for (int offset = warpSize/2; offset > 0; offset /= 2){
+		val += shfl_double(val, offset);
+	}
+}
 
+__global__ void mu_shuffle(nifti_data_type * A, int m, int n, int iter){
+	
+	/*
+	every block has an array (shared memory) of ceil((threads_per_blocks / warpSize)) elements
+	*/
+	extern __shared__ nifti_data_type Ash[];
+	int tid = threadIdx.x;
+	int difference = blockDim.x - m;
+	int index = blockIdx.x * blockDim.x + threadIdx.x;
+	int warpId = threadIdx.x / warpSize;
+
+	//#pragma unroll
+	for (int i=0; i<iter; i++){
+		int columnIndex = blockIdx.x + i * gridDim.x;
+		int globalDataIndex = index - blockIdx.x * difference + i * gridDim.x * m;
+		
+		if (columnIndex < n){
+			
+			// do reduction by shuffle instructions in warps
+			nifti_data_type val = 0.0;
+			if (tid < m){
+				val = A[globalDataIndex];
+			}
+			int lane = threadIdx.x % warpSize;
+			val = warpDoubleReduce(val);
+
+			if(lane == 0) Ash[warpId] = val;
+			__syncthreads();
+
+			//the last part of reduction TODO
+		}
+	}
 }
 
 __global__ void get_mu(nifti_data_type * A, int m, int n, int iter, nifti_data_type* MU){
@@ -333,10 +371,6 @@ void runPCA(nifti_data_type * A, int m, int n){
 	//checkCudaErrors(cudaMemcpy(S, S_dev, min*sizeof(nifti_data_type), cudaMemcpyDeviceToHost));
 	//print_matrix_data(S, min, 0, 0, 1, "S_matrix.txt");
 
-	nifti_data_type* coeff = (nifti_data_type*) malloc(m*new_cols*sizeof(nifti_data_type));
-	checkCudaErrors(cudaMemcpy(coeff, A_dev, m*new_cols*sizeof(nifti_data_type), cudaMemcpyDeviceToHost));
-	print_matrix_data(coeff, m, new_cols, 0, 1, "coeff_mat.txt");
-
 	threadsPerBlock = 512;
 	int blocks_per_column = getRound(m, threadsPerBlock) / threadsPerBlock;
 	int grid_x = getRound(new_cols, 32);
@@ -352,19 +386,23 @@ void runPCA(nifti_data_type * A, int m, int n){
 	checkCudaErrors(cudaDeviceSynchronize());
 	checkCudaErrors(cudaGetLastError());
 
-	nifti_data_type * intermediate_results_h = (nifti_data_type*) malloc(new_cols*blocks_per_column*sizeof(nifti_data_type));
-	checkCudaErrors(cudaMemcpy(intermediate_results_h, intermediate_results, new_cols*blocks_per_column*sizeof(nifti_data_type), cudaMemcpyDeviceToHost));
-	print_matrix_data(intermediate_results_h, blocks_per_column, new_cols, 0, 1, "intermed_res.txt");
-	free(intermediate_results_h);
+	//nifti_data_type * intermediate_results_h = (nifti_data_type*) malloc(new_cols*blocks_per_column*sizeof(nifti_data_type));
+	//checkCudaErrors(cudaMemcpy(intermediate_results_h, intermediate_results, new_cols*blocks_per_column*sizeof(nifti_data_type), cudaMemcpyDeviceToHost));
+	//print_matrix_data(intermediate_results_h, blocks_per_column, new_cols, 0, 1, "intermed_res.txt");
+	//free(intermediate_results_h);
 
 	//nifti_data_type* maxFindResults = (nifti_data_type*) malloc(new_cols*sizeof(nifti_data_type));
 	nifti_data_type* maxFindResults_d;
 	//checkCudaErrors(cudaMalloc(&maxFindResults_d, new_cols*sizeof(nifti_data_type)));
 
-	dim3 grid2(1, grid_x);
+	dim3 grid2(grid_x, 1);
 	get_colsign<<<grid2, threadsPerBlock, shared_mem_size>>>(intermediate_results, blocks_per_column, new_cols, A_dev, m, new_cols, maxFindResults_d);
 	checkCudaErrors(cudaDeviceSynchronize());
 	checkCudaErrors(cudaGetLastError());
+
+	nifti_data_type* coeff = (nifti_data_type*) malloc(m*new_cols*sizeof(nifti_data_type));
+	checkCudaErrors(cudaMemcpy(coeff, A_dev, m*new_cols*sizeof(nifti_data_type), cudaMemcpyDeviceToHost));
+	print_matrix_data(coeff, m, new_cols, 0, 1, "coeff_mat.txt");
 
 	//checkCudaErrors(cudaMemcpy(maxFindResults, maxFindResults_d, new_cols*sizeof(nifti_data_type), cudaMemcpyDeviceToHost));
 	//checkCudaErrors(cudaFree(maxFindResults_d));
