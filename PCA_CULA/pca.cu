@@ -184,7 +184,7 @@ __device__ inline double __sfhl_down_asm_double(double var, unsigned int delta, 
 	hi = __shfl_down(hi, delta, width);
 
 	// recreate the 64b number
-	asm volatile("mov.b64 %0, {%1, %2};" : "=d"(x) : "r"(lo), "r"(hi));
+	asm volatile("mov.b64 %0, {%1, %2};" : "=d"(var) : "r"(lo), "r"(hi));
 
 	return var;
 }
@@ -210,6 +210,7 @@ __inline__ __device__ double warpDoubleReduce(double val){
 	for (int offset = warpSize/2; offset > 0; offset /= 2){
 		val += __shfl_down_double(val, offset);
 	}
+	return val;
 }
 
 __inline__ __device__ nifti_data_type blockReduceMuColumn(nifti_data_type val){
