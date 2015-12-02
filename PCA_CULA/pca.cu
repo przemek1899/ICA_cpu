@@ -253,6 +253,8 @@ __global__ void mu_shuffle(nifti_data_type * A, int m, int n, int iter, nifti_da
 			if (tid < m){
 				val = A[globalDataIndex];
 			}
+			__syncthreads(); 
+			
 			val = warpDoubleReduce(val);
 			if (lane==0) shared[wid]=val;
 			__syncthreads(); 
@@ -402,20 +404,14 @@ void runPCA(nifti_data_type * A, int m, int n){
 	int iter = getRound(m, numBlocks) / numBlocks;
 	printf("shared mem size %d, iter %d\n", shared_mem_size, iter);
 
-	checkCudaErrors(cudaEventCreate(&start));	checkCudaErrors(cudaEventCreate(&stop));	checkCudaErrors(cudaEventRecord(start, 0));
 	
 	//get_mu<<<numBlocks, threadsPerBlock, shared_mem_size>>>(AT_dev, n, m, iter, MU_dev);
 	mu_shuffle<<<numBlocks, threadsPerBlock>>>(AT_dev, n, m, iter, MU_dev);
 	checkCudaErrors(cudaDeviceSynchronize()); checkCudaErrors(cudaGetLastError());
 
-	checkCudaErrors(cudaEventRecord(stop, 0));	checkCudaErrors(cudaEventSynchronize(stop));	
-	checkCudaErrors(cudaEventElapsedTime(&elapsedTime, start, stop));
-
 	// transpozycja macierzy AT po obliczenia mu
 	status = culaDeviceSgeTranspose(n,  m, AT_dev, n, A_dev, m);
     checkStatus(status);
-
-	printf("Calculate mu-only time: %f ms\n", elapsedTime);
 
 	nifti_data_type *MU = (nifti_data_type*) malloc(max*sizeof(nifti_data_type));
 	checkCudaErrors(cudaMemcpy(MU, MU_dev, max*sizeof(nifti_data_type), cudaMemcpyDeviceToHost));
@@ -424,9 +420,15 @@ void runPCA(nifti_data_type * A, int m, int n){
 
 	// ------------- SVD -----------------------------
 	// coeff = U_dev (m x min)
+	
+	checkCudaErrors(cudaEventCreate(&start));	checkCudaErrors(cudaEventCreate(&stop));	checkCudaErrors(cudaEventRecord(start, 0));
+
     status = culaDeviceSgesvd(jobu, jobvt, m, n, A_dev, lda, S_dev, U_dev, ldu, VT_dev, ldvt);
     checkStatus(status);
-
+		
+	checkCudaErrors(cudaEventRecord(stop, 0));	checkCudaErrors(cudaEventSynchronize(stop));	
+	checkCudaErrors(cudaEventElapsedTime(&elapsedTime, start, stop));
+	printf("Calculate svd time: %f ms\n", elapsedTime);
 	//checkCudaErrors(cudaMemcpy(S, S_dev, min*sizeof(nifti_data_type), cudaMemcpyDeviceToHost));
 	//print_matrix_data(S, min, 0, 0, 1, "S_matrix.txt");
 
