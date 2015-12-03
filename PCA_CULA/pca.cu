@@ -368,12 +368,12 @@ void runPCA(nifti_data_type * A, int m, int n){
 	float elapsedTime;
 
 	nifti_data_type *S, *U, *VT;
-	nifti_data_type *A_dev, *AT_dev, *MU_dev, *S_dev, *U_dev, *VT_dev;
+	nifti_data_type *A_dev, *AT_dev, *MU_dev, *S_dev, *U_dev, *VT_dev, *intermediate_results;
 
 	// allocation of memory
 	checkCudaErrors(cudaMalloc(&A_dev, m*n*sizeof(nifti_data_type)));
 	checkCudaErrors(cudaMalloc(&AT_dev, m*n*sizeof(nifti_data_type))); // AT do transpozycji macierzy
-	checkCudaErrors(cudaMalloc(&MU_dev, m*sizeof(nifti_data_type))); // an array only for check the results, need to be removed in final version
+	//checkCudaErrors(cudaMalloc(&MU_dev, m*sizeof(nifti_data_type))); // an array only for check the results, need to be removed in final version
 		
 	S = (nifti_data_type*) malloc(min * sizeof(nifti_data_type));
 	checkCudaErrors(cudaMalloc(&S_dev, min * sizeof(nifti_data_type)));
@@ -405,18 +405,18 @@ void runPCA(nifti_data_type * A, int m, int n){
 	printf("shared mem size %d, iter %d\n", shared_mem_size, iter);
 
 	
-	//get_mu<<<numBlocks, threadsPerBlock, shared_mem_size>>>(AT_dev, n, m, iter, MU_dev);
-	mu_shuffle<<<numBlocks, threadsPerBlock>>>(AT_dev, n, m, iter, MU_dev);
+	get_mu<<<numBlocks, threadsPerBlock, shared_mem_size>>>(AT_dev, n, m, iter, MU_dev);
+	//mu_shuffle<<<numBlocks, threadsPerBlock>>>(AT_dev, n, m, iter, MU_dev);
 	checkCudaErrors(cudaDeviceSynchronize()); checkCudaErrors(cudaGetLastError());
 
 	// transpozycja macierzy AT po obliczenia mu
 	status = culaDeviceSgeTranspose(n,  m, AT_dev, n, A_dev, m);
     checkStatus(status);
 
-	nifti_data_type *MU = (nifti_data_type*) malloc(max*sizeof(nifti_data_type));
-	checkCudaErrors(cudaMemcpy(MU, MU_dev, max*sizeof(nifti_data_type), cudaMemcpyDeviceToHost));
-	print_matrix_data(MU, 1, m, 0, 1, "mu_shuffle.txt");
-	free(MU);
+	//nifti_data_type *MU = (nifti_data_type*) malloc(max*sizeof(nifti_data_type));
+	//checkCudaErrors(cudaMemcpy(MU, MU_dev, max*sizeof(nifti_data_type), cudaMemcpyDeviceToHost));
+	//print_matrix_data(MU, 1, m, 0, 1, "mu_shuffle.txt");
+	//free(MU);
 
 	// ------------- SVD -----------------------------
 	// coeff = U_dev (m x min)
@@ -428,7 +428,7 @@ void runPCA(nifti_data_type * A, int m, int n){
 		
 	checkCudaErrors(cudaEventRecord(stop, 0));	checkCudaErrors(cudaEventSynchronize(stop));	
 	checkCudaErrors(cudaEventElapsedTime(&elapsedTime, start, stop));
-	printf("Calculate svd time: %f ms\n", elapsedTime);
+	//printf("Calculate svd time: %f ms\n", elapsedTime);
 	//checkCudaErrors(cudaMemcpy(S, S_dev, min*sizeof(nifti_data_type), cudaMemcpyDeviceToHost));
 	//print_matrix_data(S, min, 0, 0, 1, "S_matrix.txt");
 
@@ -438,9 +438,8 @@ void runPCA(nifti_data_type * A, int m, int n){
 	int grid_x = getRound(NCOMPONENTS, 32);
 	dim3 grid(blocks_per_column, grid_x);
 	shared_mem_size = threadsPerBlock*sizeof(nifti_data_type);
-	printf("shared mem size %d, iter %d\n", shared_mem_size);
+	//printf("shared mem size %d, iter %d\n", shared_mem_size);
 
-	nifti_data_type * intermediate_results;
 	checkCudaErrors(cudaMalloc(&intermediate_results, blocks_per_column*NCOMPONENTS*sizeof(nifti_data_type)));
 
 	colsign2<<<grid, threadsPerBlock, shared_mem_size>>>(A_dev, m, NCOMPONENTS, intermediate_results, blocks_per_column, NCOMPONENTS);
@@ -466,11 +465,11 @@ void runPCA(nifti_data_type * A, int m, int n){
 
 	nifti_data_type* coeff = (nifti_data_type*) malloc(m*NCOMPONENTS*sizeof(nifti_data_type));
 	checkCudaErrors(cudaMemcpy(coeff, A_dev, m*NCOMPONENTS*sizeof(nifti_data_type), cudaMemcpyDeviceToHost));
-	print_matrix_data(coeff, m, NCOMPONENTS, 0, 1, "coeff_mat.txt");
+	//print_matrix_data(coeff, m, NCOMPONENTS, 0, 1, "coeff_mat.txt");
 
-	checkCudaErrors(cudaMemcpy(maxFindResults, maxFindResults_d, NCOMPONENTS*sizeof(nifti_data_type), cudaMemcpyDeviceToHost));
+	//checkCudaErrors(cudaMemcpy(maxFindResults, maxFindResults_d, NCOMPONENTS*sizeof(nifti_data_type), cudaMemcpyDeviceToHost));
 	checkCudaErrors(cudaFree(maxFindResults_d));
-	print_matrix_data(maxFindResults, NCOMPONENTS, 0, 0, 1, "max_results.txt");
+	//print_matrix_data(maxFindResults, NCOMPONENTS, 0, 0, 1, "max_results.txt");
 	free(maxFindResults);
 
 	// free memory
@@ -479,7 +478,7 @@ void runPCA(nifti_data_type * A, int m, int n){
 	checkCudaErrors(cudaFree(intermediate_results));
 	checkCudaErrors(cudaFree(A_dev));
 	checkCudaErrors(cudaFree(S_dev));
-	checkCudaErrors(cudaFree(MU_dev));
+	//checkCudaErrors(cudaFree(MU_dev));
 	checkCudaErrors(cudaFree(AT_dev));
 
 	if (jobu != 'O' && jobu != 'N'){
