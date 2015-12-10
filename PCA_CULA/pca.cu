@@ -330,9 +330,10 @@ __global__ void get_mu(nifti_data_type * A, int m, int n, int iter, nifti_data_t
 			if (tid < m){
 				A[globalDataIndex] -= mean;
 			}
+			/*
 			if (tid == 0 ){
 				MU[columnIndex] = mean;
-			}
+			}*/
 		}
 	}
 	
@@ -347,6 +348,11 @@ void runPCA(nifti_data_type * A, int m, int n){
     culaStatus status;
     status = culaInitialize();
     checkStatus(status);
+
+	cudaDeviceProp deviceProp;
+    cudaGetDeviceProperties(&deviceProp, 0);
+
+	int maxThreads_x = deviceProp.maxThreadsDim[0];
 	
 	// for m >= n
 	char jobu = 'O';  // n > m ? 'S' : 'O';
@@ -387,8 +393,6 @@ void runPCA(nifti_data_type * A, int m, int n){
 		checkCudaErrors(cudaMalloc(&VT_dev, ldvt*n*sizeof(nifti_data_type)));
 	}
 
-
-	// copy data from host to device
 	checkCudaErrors(cudaMemcpy(A_dev, A, m*n*sizeof(nifti_data_type), cudaMemcpyHostToDevice));
 
 	// transpozycja macierzy A w celu obliczenia mu
@@ -398,11 +402,16 @@ void runPCA(nifti_data_type * A, int m, int n){
 	//printf("Calculete transpose-only time: %f ms\n", elapsedTime);
 	
 	// ---------- MU calculations -----------------------
-	int shared_mem_size = getRound(min, 32)*sizeof(nifti_data_type);
-	int threadsPerBlock = 128;
+	//int threadsPerBlock = 128;
+	int threadsPerBlock = getRound(min, 32);
+	if (threadsPerBlock > maxThreads_x){
+		threadsPerBlock = maxThreads_x;
+	}
+	//int shared_mem_size = getRound(min, 32)*sizeof(nifti_data_type);
+	int shared_mem_size = threadsPerBlock*sizeof(nifti_data_type);
 	int numBlocks = 65535;
 	int iter = getRound(m, numBlocks) / numBlocks;
-	printf("shared mem size %d, iter %d\n", shared_mem_size, iter);
+	//printf("shared mem size %d, iter %d\n", shared_mem_size, iter);
 
 	
 	get_mu<<<numBlocks, threadsPerBlock, shared_mem_size>>>(AT_dev, n, m, iter, MU_dev);
