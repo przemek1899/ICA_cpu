@@ -43,7 +43,11 @@ __device__ int deviceGetRound(int m, int n){
 
 /*
 
-colsign2 functions
+colsign2 function searches for an element in a column (row) with the biggest absolute value,
+than wirtes each found element to an array which later is used by another kernel program
+
+jedna kolumna ma dlugosc np. 163840, wiec nie da sie jej objac jednym blokiem. Jedna kolumna przetwarza iles blokow, zapisujacych
+swe wyniki to intermediate results, ktora potem jest przetwarzana przez kolejny kernel.
 
 */
 
@@ -80,6 +84,12 @@ __global__ void colsign2(nifti_data_type* coeff, int rows, int cols, nifti_data_
 		}
 	}
 }
+
+/*
+
+zbiera wyniki z intermediate results
+
+*/
 
 __global__ void get_colsign(nifti_data_type *intmed_results, int rows, int cols, nifti_data_type * coeff, int m_coeff, int n_coeff, nifti_data_type* maxFindResults_d){
 
