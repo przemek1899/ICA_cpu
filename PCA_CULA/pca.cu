@@ -399,14 +399,14 @@ void runPCA(nifti_data_type * A, int m, int n, int ncomponents, nifti_data_type*
 	// ------------- SVD -----------------------------
 	// coeff = U_dev (m x min)
 	
-	//checkCudaErrors(cudaEventCreate(&start));	checkCudaErrors(cudaEventCreate(&stop));	checkCudaErrors(cudaEventRecord(start, 0));
+	checkCudaErrors(cudaEventCreate(&start));	checkCudaErrors(cudaEventCreate(&stop));	checkCudaErrors(cudaEventRecord(start, 0));
 
     status = culaDeviceSgesvd(jobu, jobvt, m, n, A_dev, lda, S_dev, U_dev, ldu, VT_dev, ldvt);
     checkStatus(status);
 		
-	//checkCudaErrors(cudaEventRecord(stop, 0));	checkCudaErrors(cudaEventSynchronize(stop));
-	//checkCudaErrors(cudaEventElapsedTime(&elapsedTime, start, stop));
-	//printf("Calculate svd time: %f ms\n", elapsedTime);
+	checkCudaErrors(cudaEventRecord(stop, 0));	checkCudaErrors(cudaEventSynchronize(stop));
+	checkCudaErrors(cudaEventElapsedTime(&elapsedTime, start, stop));
+	printf("Calculate svd time: %f ms\n", elapsedTime);
 
 	// -------------- sign convention on the coefficients ---------------------------------
 	threadsPerBlock = 512;
@@ -464,8 +464,8 @@ void runPCA(nifti_data_type * A, int m, int n, int ncomponents, nifti_data_type*
 		checkCudaErrors(cudaFree(VT_dev));
 	}
 
-	//checkCudaErrors(cudaEventDestroy(start));
-	//checkCudaErrors(cudaEventDestroy(stop));
+	checkCudaErrors(cudaEventDestroy(start));
+	checkCudaErrors(cudaEventDestroy(stop));
 
 	//checkCudaErrors(cudaDeviceReset());
 	return;
