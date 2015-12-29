@@ -13,7 +13,6 @@
 
 #define imin(X, Y)  ((X) < (Y) ? (X) : (Y))
 #define imax(X, Y)  ((X) > (Y) ? (X) : (Y))
-#define NUM_COMPONENTS = 20;
 
 void checkStatus(culaStatus status)
 {
@@ -319,7 +318,7 @@ __global__ void center_data(nifti_data_type * A, int m, int n, int iter, nifti_d
 	
 }
 
-void runPCA(nifti_data_type * A, int m, int n){
+void runPCA(nifti_data_type * A, int m, int n, int ncomponents, nifti_data_type* coeff_result){
 
 		
 	/* Initialize CULA */
@@ -343,7 +342,6 @@ void runPCA(nifti_data_type * A, int m, int n){
 		jobvt = 'O';
 	}
 	
-	const int NCOMPONENTS = 20;
 	int lda = m;
     int ldu = m;
     int ldvt = n;
@@ -414,41 +412,44 @@ void runPCA(nifti_data_type * A, int m, int n){
 	// -------------- sign convention on the coefficients ---------------------------------
 	threadsPerBlock = 512;
 	int blocks_per_column = getRound(m, threadsPerBlock) / threadsPerBlock;
-	int grid_x = getRound(NCOMPONENTS, 32);
+	int grid_x = getRound(ncomponents, 32);
 	dim3 grid(blocks_per_column, grid_x);
 	shared_mem_size = threadsPerBlock*sizeof(nifti_data_type);
 	//printf("shared mem size %d, iter %d\n", shared_mem_size);
 
-	checkCudaErrors(cudaMalloc(&intermediate_results, blocks_per_column*NCOMPONENTS*sizeof(nifti_data_type)));
+	checkCudaErrors(cudaMalloc(&intermediate_results, blocks_per_column*ncomponents*sizeof(nifti_data_type)));
 
-	sign_convention1<<<grid, threadsPerBlock, shared_mem_size>>>(A_dev, m, NCOMPONENTS, intermediate_results, blocks_per_column, NCOMPONENTS);
+	sign_convention1<<<grid, threadsPerBlock, shared_mem_size>>>(A_dev, m, ncomponents, intermediate_results, blocks_per_column, ncomponents);
 	checkCudaErrors(cudaDeviceSynchronize());
 	checkCudaErrors(cudaGetLastError());
 
 	// ------------------- run second kernel ----------------------------------------------------
-	nifti_data_type* maxFindResults = (nifti_data_type*) malloc(NCOMPONENTS*sizeof(nifti_data_type));
+	nifti_data_type* maxFindResults = (nifti_data_type*) malloc(ncomponents*sizeof(nifti_data_type));
 	nifti_data_type* maxFindResults_d;
-	checkCudaErrors(cudaMalloc(&maxFindResults_d, NCOMPONENTS*sizeof(nifti_data_type)));
+	checkCudaErrors(cudaMalloc(&maxFindResults_d, ncomponents*sizeof(nifti_data_type)));
 
 	dim3 grid2(grid_x, 1);
 	shared_mem_size = blocks_per_column*sizeof(nifti_data_type);
-	sign_convention2<<<grid2, blocks_per_column, shared_mem_size>>>(intermediate_results, blocks_per_column, NCOMPONENTS, A_dev, m, NCOMPONENTS, maxFindResults_d);
+	sign_convention2<<<grid2, blocks_per_column, shared_mem_size>>>(intermediate_results, blocks_per_column, ncomponents, A_dev, m, ncomponents, maxFindResults_d);
 	
 	checkCudaErrors(cudaDeviceSynchronize());
 	checkCudaErrors(cudaGetLastError());
 
-	nifti_data_type* coeff = (nifti_data_type*) malloc(m*NCOMPONENTS*sizeof(nifti_data_type));
-	checkCudaErrors(cudaMemcpy(coeff, A_dev, m*NCOMPONENTS*sizeof(nifti_data_type), cudaMemcpyDeviceToHost));
-	//print_matrix_data(coeff, m, NCOMPONENTS, 0, 1, "coeff_mat.txt");
+	//nifti_data_type* coeff = (nifti_data_type*) malloc(m*ncomponents*sizeof(nifti_data_type));
+	checkCudaErrors(cudaMemcpy(coeff_result, A_dev, m*ncomponents*sizeof(nifti_data_type), cudaMemcpyDeviceToHost));
+	//print_matrix_data(coeff, m, ncomponents, 0, 1, "coeff_mat.txt");
 
-	//checkCudaErrors(cudaMemcpy(maxFindResults, maxFindResults_d, NCOMPONENTS*sizeof(nifti_data_type), cudaMemcpyDeviceToHost));
+	checkCudaErrors(cudaDeviceSynchronize());
+	checkCudaErrors(cudaGetLastError());
+
+	//checkCudaErrors(cudaMemcpy(maxFindResults, maxFindResults_d, ncomponents*sizeof(nifti_data_type), cudaMemcpyDeviceToHost));
 	checkCudaErrors(cudaFree(maxFindResults_d));
-	//print_matrix_data(maxFindResults, NCOMPONENTS, 0, 0, 1, "max_results.txt");
+	//print_matrix_data(maxFindResults, ncomponents, 0, 0, 1, "max_results.txt");
 	free(maxFindResults);
 
 	// free memory
 	free(S);
-	free(coeff);
+	//free(coeff);
 	checkCudaErrors(cudaFree(intermediate_results));
 	checkCudaErrors(cudaFree(A_dev));
 	checkCudaErrors(cudaFree(S_dev));
