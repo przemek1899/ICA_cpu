@@ -7,6 +7,7 @@
 int main(int argc, char * argv[] ){
 
 	//Read nifti data
+	/*
 	FSLIO *fslio;
     void *buffer;
 	short x, y, z, v;
@@ -49,46 +50,39 @@ int main(int argc, char * argv[] ){
 	}
 	*/
 
-	// production version 
-	//std::ofstream column;
-	//column.open("Column.txt");
+	if (argc < 3){
+		printf("You must specify name values of m and n\n");
+		return 0;
+	}
+
+	int m = atoi(argv[1]);
+	int n = atoi(argv[2]);
+	int mn = m*n;
+	char filename[80];
+	sprintf(filename, "%dx%d.bin", m, n);
 	
+	float* A = (float*) malloc(sizeof(float)*mn);
+	FILE * pA;
+	const unsigned int num_bytes = mn;
+	pA = fopen(filename, "rb");
+	int i;
+	unsigned int read_bytes = 0;
+	while(num_bytes - read_bytes){
+		read_bytes = fread((void*)&A[read_bytes], sizeof(float), num_bytes-read_bytes, pA);
+	}
+	
+	fclose(pA);
+
 	nifti_data_type *data = (nifti_data_type*) malloc(sizeof(nifti_data_type)*mn);
-
-	// w przypadku transpozycji macierzy, zmieniamy tylko przepisywanie danych z bf do data oraz wartoœci m i n
-	// kopiowanie danych dla transpozycji macierzy
-    // dwie wersje transpozycji macierzy
-
-	// 1 wersja z kolejnymi odczytami 
-	/*
-	for(i = 0; i < n; i++){
-		for(j = 0; j < m; j++){
-			data[n*j + i] = (nifti_data_type) bf[i*m + j];
-		}
-	}
-	int temp = n;
-	//n = m;
-	//m = temp;
-	*/
-	
-	// 2 wersja z kolejnymi zapisami
-	/*
-	for(i = 0; i < mn; i++){
-		int index = 
-		data[i] = (nifti_data_type) bf[];
-	}*/
 	
 
-	// kopiowanie danych bez transpozycji maciezrzy
+	// prepare data format
 	for(i=0; i < mn; i++){
-		data[i] = (nifti_data_type) bf[i];
-		/*if (i < v){
-			printf("%d:  %f\n", i+1, data[i]);
-		}*/
+		//data[i] = (nifti_data_type) bf[i];
+		data[i] = (nifti_data_type) A[i];
 	}
-	//column.close();
-
-	FslClose(fslio);
+	free(A);
+	//FslClose(fslio);
 
 	
 	StopWatchInterface *timer = NULL;

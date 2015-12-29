@@ -43,15 +43,12 @@ __device__ int deviceGetRound(int m, int n){
 
 /*
 
-colsign2 function searches for an element in a column (row) with the biggest absolute value,
+sign_convention1 function searches for an element in a column (row) with the biggest absolute value,
 than wirtes each found element to an array which later is used by another kernel program
-
-jedna kolumna ma dlugosc np. 163840, wiec nie da sie jej objac jednym blokiem. Jedna kolumna przetwarza iles blokow, zapisujacych
-swe wyniki to intermediate results, ktora potem jest przetwarzana przez kolejny kernel.
 
 */
 
-__global__ void colsign2(nifti_data_type* coeff, int rows, int cols, nifti_data_type * intermediate_results, int m_colsign, int n_colsign){
+__global__ void sign_convention1(nifti_data_type* coeff, int rows, int cols, nifti_data_type * intermediate_results, int m_colsign, int n_colsign){
 
 	extern __shared__ nifti_data_type Ash[];
 	int tid = threadIdx.x;
@@ -85,13 +82,7 @@ __global__ void colsign2(nifti_data_type* coeff, int rows, int cols, nifti_data_
 	}
 }
 
-/*
-
-zbiera wyniki z intermediate results
-
-*/
-
-__global__ void get_colsign(nifti_data_type *intmed_results, int rows, int cols, nifti_data_type * coeff, int m_coeff, int n_coeff, nifti_data_type* maxFindResults_d){
+__global__ void sign_convention2(nifti_data_type *intmed_results, int rows, int cols, nifti_data_type * coeff, int m_coeff, int n_coeff, nifti_data_type* maxFindResults_d){
 
 	extern __shared__ nifti_data_type Ash[];
 
@@ -120,9 +111,6 @@ __global__ void get_colsign(nifti_data_type *intmed_results, int rows, int cols,
 		maxFindResults_d[blockIdx.x] = sign;
 	}
 
-	// do tego momentu jest dobrze
-
-	//jeden blok - jedna kolumna (w macierzy coeff, wynikowej U z svd, która siedzi w tablicy A)
 	if (blockIdx.x < cols){
 		int iter = deviceGetRound(m_coeff, blockDim.x) / blockDim.x; // m / d³ugoœæ bloku
 		for (unsigned i=0; i < iter; i++){
@@ -241,9 +229,9 @@ __inline__ __device__ nifti_data_type blockReduceMuColumn(nifti_data_type val){
   return val;
 }
 
-__global__ void mu_shuffle(nifti_data_type * A, int m, int n, int iter, nifti_data_type* MU){
+__global__ void center_data_shuffle(nifti_data_type * A, int m, int n, int iter, nifti_data_type* MU){
 
-	// na razie zakladamy, ze jeden blok mo¿e przykryæ ca³¹ kolumnê, czyli liczba elementów w kolumnie <= 1024
+	// an assumption is that one row is no longer than 1024 (nframes <= 1024)
 
 	static __shared__ nifti_data_type shared[32]; // Shared mem for 32 partial sums
 	int lane = threadIdx.x % warpSize;
@@ -285,28 +273,10 @@ __global__ void mu_shuffle(nifti_data_type * A, int m, int n, int iter, nifti_da
 	}
 }
 
-/*	MU MU MU MU MU MU MU MU MU MU MU MU MU MU MU MU MU MU MU MU
 
-	w tej wersji funkcji get_mu oblicza tablice jak ponizej:
+__global__ void center_data(nifti_data_type * A, int m, int n, int iter, nifti_data_type* MU){
 
-						M = 163840 (to jest problem - du¿a liczba kolumn)
-		_________________________________________________________
-		|___|___|___|___|___|___|___|___|___|___|___|___|___|___|
-		|___|___|___|___|___|___|___|___|___|___|___|___|___|___|
-  N=121 |___|___|___|___|___|___|___|___|___|___|___|___|___|___|
-		|___|___|___|___|___|___|___|___|___|___|___|___|___|___|
-		|___|___|___|___|___|___|___|___|___|___|___|___|___|___|
-
-		Ka¿dy BLOK wykonuje redukcjê sumy dla JEDNEJ KOLUMNY
-
-		PROBLEM: liczba kolumn jest zbyt du¿y aby "przykryæ" ca³¹ tablicê blokami za jednym razem - dlatego potrzebne s¹ iteracje
-		ALE: co jeœli liczba wierszy (bêdzie wiêksza od 128 albo np. 1024 ??) - to do przemyœlenia
-
-*/
-
-__global__ void get_mu(nifti_data_type * A, int m, int n, int iter, nifti_data_type* MU){
-
-	// tutaj jest zalozenie z m < n (np. m=121, n=163840)
+	// m < n (np. m=121, n=163840)
 	// every block has an array (shared memory) of ceil((threads_per_blocks / warpSize)) elements
 	
 	extern __shared__ nifti_data_type Ash[];
@@ -351,7 +321,6 @@ __global__ void get_mu(nifti_data_type * A, int m, int n, int iter, nifti_data_t
 
 void runPCA(nifti_data_type * A, int m, int n){
 
-	// int DOF = n - 1;
 		
 	/* Initialize CULA */
 	checkCudaErrors(cudaSetDevice(0));
@@ -366,7 +335,7 @@ void runPCA(nifti_data_type * A, int m, int n){
 	
 	// for m >= n
 	char jobu = 'O';  // n > m ? 'S' : 'O';
-	char jobvt = 'N'; // n > m ? 'O' : 'S'; bylo S
+	char jobvt = 'N'; // n > m ? 'O' : 'S';
 
 	// for n > m 
 	if (n > m){
@@ -388,8 +357,8 @@ void runPCA(nifti_data_type * A, int m, int n){
 
 	// allocation of memory
 	checkCudaErrors(cudaMalloc(&A_dev, m*n*sizeof(nifti_data_type)));
-	checkCudaErrors(cudaMalloc(&AT_dev, m*n*sizeof(nifti_data_type))); // AT do transpozycji macierzy
-	//checkCudaErrors(cudaMalloc(&MU_dev, m*sizeof(nifti_data_type))); // an array only for check the results, need to be removed in final version
+	checkCudaErrors(cudaMalloc(&AT_dev, m*n*sizeof(nifti_data_type))); // array AT for transpose matrix
+	//checkCudaErrors(cudaMalloc(&MU_dev, m*sizeof(nifti_data_type))); // an array only for checking the results, need to be removed in final version
 		
 	S = (nifti_data_type*) malloc(min * sizeof(nifti_data_type));
 	checkCudaErrors(cudaMalloc(&S_dev, min * sizeof(nifti_data_type)));
@@ -405,13 +374,12 @@ void runPCA(nifti_data_type * A, int m, int n){
 
 	checkCudaErrors(cudaMemcpy(A_dev, A, m*n*sizeof(nifti_data_type), cudaMemcpyHostToDevice));
 
-	// transpozycja macierzy A w celu obliczenia mu
+	// transpose matrix for function to centring the data
 	status = culaDeviceSgeTranspose(m, n, A_dev, m, AT_dev, n);
     checkStatus(status);
 
-	//printf("Calculete transpose-only time: %f ms\n", elapsedTime);
 	
-	// ---------- MU calculations -----------------------
+	// ---------- centring the data -----------------------
 	//int threadsPerBlock = 128;
 	int threadsPerBlock = getRound(min, 32);
 	if (threadsPerBlock > maxThreads_x){
@@ -424,34 +392,26 @@ void runPCA(nifti_data_type * A, int m, int n){
 	//printf("shared mem size %d, iter %d\n", shared_mem_size, iter);
 
 	
-	get_mu<<<numBlocks, threadsPerBlock, shared_mem_size>>>(AT_dev, n, m, iter, MU_dev);
-	//mu_shuffle<<<numBlocks, threadsPerBlock>>>(AT_dev, n, m, iter, MU_dev);
+	center_data<<<numBlocks, threadsPerBlock, shared_mem_size>>>(AT_dev, n, m, iter, MU_dev);
 	checkCudaErrors(cudaDeviceSynchronize()); checkCudaErrors(cudaGetLastError());
 
-	// transpozycja macierzy AT po obliczenia mu
+	// trasponse matrix again to restore to its initial shape
 	status = culaDeviceSgeTranspose(n,  m, AT_dev, n, A_dev, m);
     checkStatus(status);
-
-	//nifti_data_type *MU = (nifti_data_type*) malloc(max*sizeof(nifti_data_type));
-	//checkCudaErrors(cudaMemcpy(MU, MU_dev, max*sizeof(nifti_data_type), cudaMemcpyDeviceToHost));
-	//print_matrix_data(MU, 1, m, 0, 1, "mu_shuffle.txt");
-	//free(MU);
 
 	// ------------- SVD -----------------------------
 	// coeff = U_dev (m x min)
 	
-	checkCudaErrors(cudaEventCreate(&start));	checkCudaErrors(cudaEventCreate(&stop));	checkCudaErrors(cudaEventRecord(start, 0));
+	//checkCudaErrors(cudaEventCreate(&start));	checkCudaErrors(cudaEventCreate(&stop));	checkCudaErrors(cudaEventRecord(start, 0));
 
     status = culaDeviceSgesvd(jobu, jobvt, m, n, A_dev, lda, S_dev, U_dev, ldu, VT_dev, ldvt);
     checkStatus(status);
 		
-	checkCudaErrors(cudaEventRecord(stop, 0));	checkCudaErrors(cudaEventSynchronize(stop));	
-	checkCudaErrors(cudaEventElapsedTime(&elapsedTime, start, stop));
+	//checkCudaErrors(cudaEventRecord(stop, 0));	checkCudaErrors(cudaEventSynchronize(stop));
+	//checkCudaErrors(cudaEventElapsedTime(&elapsedTime, start, stop));
 	//printf("Calculate svd time: %f ms\n", elapsedTime);
-	//checkCudaErrors(cudaMemcpy(S, S_dev, min*sizeof(nifti_data_type), cudaMemcpyDeviceToHost));
-	//print_matrix_data(S, min, 0, 0, 1, "S_matrix.txt");
 
-	// -------------- colsign ---------------------------------
+	// -------------- sign convention on the coefficients ---------------------------------
 	threadsPerBlock = 512;
 	int blocks_per_column = getRound(m, threadsPerBlock) / threadsPerBlock;
 	int grid_x = getRound(NCOMPONENTS, 32);
@@ -461,23 +421,18 @@ void runPCA(nifti_data_type * A, int m, int n){
 
 	checkCudaErrors(cudaMalloc(&intermediate_results, blocks_per_column*NCOMPONENTS*sizeof(nifti_data_type)));
 
-	colsign2<<<grid, threadsPerBlock, shared_mem_size>>>(A_dev, m, NCOMPONENTS, intermediate_results, blocks_per_column, NCOMPONENTS);
+	sign_convention1<<<grid, threadsPerBlock, shared_mem_size>>>(A_dev, m, NCOMPONENTS, intermediate_results, blocks_per_column, NCOMPONENTS);
 	checkCudaErrors(cudaDeviceSynchronize());
 	checkCudaErrors(cudaGetLastError());
 
-	//nifti_data_type * intermediate_results_h = (nifti_data_type*) malloc(new_cols*blocks_per_column*sizeof(nifti_data_type));
-	//checkCudaErrors(cudaMemcpy(intermediate_results_h, intermediate_results, new_cols*blocks_per_column*sizeof(nifti_data_type), cudaMemcpyDeviceToHost));
-	//print_matrix_data(intermediate_results_h, blocks_per_column, new_cols, 0, 1, "intermed_res.txt");
-	//free(intermediate_results_h);
-
-	// ------------------- get_colsign ----------------------------------------------------
+	// ------------------- run second kernel ----------------------------------------------------
 	nifti_data_type* maxFindResults = (nifti_data_type*) malloc(NCOMPONENTS*sizeof(nifti_data_type));
 	nifti_data_type* maxFindResults_d;
 	checkCudaErrors(cudaMalloc(&maxFindResults_d, NCOMPONENTS*sizeof(nifti_data_type)));
 
 	dim3 grid2(grid_x, 1);
 	shared_mem_size = blocks_per_column*sizeof(nifti_data_type);
-	get_colsign<<<grid2, blocks_per_column, shared_mem_size>>>(intermediate_results, blocks_per_column, NCOMPONENTS, A_dev, m, NCOMPONENTS, maxFindResults_d);
+	sign_convention2<<<grid2, blocks_per_column, shared_mem_size>>>(intermediate_results, blocks_per_column, NCOMPONENTS, A_dev, m, NCOMPONENTS, maxFindResults_d);
 	
 	checkCudaErrors(cudaDeviceSynchronize());
 	checkCudaErrors(cudaGetLastError());
@@ -512,6 +467,6 @@ void runPCA(nifti_data_type * A, int m, int n){
 	checkCudaErrors(cudaEventDestroy(start));
 	checkCudaErrors(cudaEventDestroy(stop));
 
-	//checkCudaErrors(cudaDeviceReset()); // dla debuggera
+	//checkCudaErrors(cudaDeviceReset());
 	return;
 }
