@@ -87,14 +87,18 @@ int main(int argc, char * argv[] ){
 	int ncomponents = 20;
 	nifti_data_type* coeff = (nifti_data_type*) malloc(m*ncomponents*sizeof(nifti_data_type));
 	
+	int interations = 20;
+	int i;
 	StopWatchInterface *timer = NULL;
 	sdkCreateTimer(&timer);
 	sdkStartTimer(&timer);
 	
-	runPCA(data, m, n, ncomponents, coeff); //x*y*z, v
+	for(i=0; i<interations; i++){
+		runPCA(data, m, n, ncomponents, coeff); //x*y*z, v
+	}
 
 	sdkStopTimer(&timer);
-	printf("Processing time: %f ms\n", sdkGetTimerValue(&timer));
+	printf("Processing time: %f ms\n", sdkGetTimerValue(&timer)/(float)interations);
 	sdkDeleteTimer(&timer);
 
 	free(data);

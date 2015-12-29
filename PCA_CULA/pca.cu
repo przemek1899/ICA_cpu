@@ -329,9 +329,9 @@ void runPCA(nifti_data_type * A, int m, int n, int ncomponents, nifti_data_type*
     checkStatus(status);
 
 	cudaDeviceProp deviceProp;
-    cudaGetDeviceProperties(&deviceProp, 0);
+    //cudaGetDeviceProperties(&deviceProp, 0);
 
-	int maxThreads_x = deviceProp.maxThreadsDim[0];
+	int maxThreads_x = 1024; deviceProp.maxThreadsDim[0];
 	
 	// for m >= n
 	char jobu = 'O';  // n > m ? 'S' : 'O';
@@ -351,7 +351,7 @@ void runPCA(nifti_data_type * A, int m, int n, int ncomponents, nifti_data_type*
 	cudaEvent_t start, stop;
 	float elapsedTime;
 	
-	checkCudaErrors(cudaEventCreate(&start));	checkCudaErrors(cudaEventCreate(&stop));	checkCudaErrors(cudaEventRecord(start, 0));
+	//checkCudaErrors(cudaEventCreate(&start));	checkCudaErrors(cudaEventCreate(&stop));	checkCudaErrors(cudaEventRecord(start, 0));
 
 	nifti_data_type *S, *U, *VT;
 	nifti_data_type *A_dev, *AT_dev, *MU_dev, *S_dev, *U_dev, *VT_dev, *intermediate_results;
@@ -460,13 +460,14 @@ void runPCA(nifti_data_type * A, int m, int n, int ncomponents, nifti_data_type*
 		free(VT);
 		checkCudaErrors(cudaFree(VT_dev));
 	}
-	
+	/*
 	checkCudaErrors(cudaEventRecord(stop, 0));	checkCudaErrors(cudaEventSynchronize(stop));
 	checkCudaErrors(cudaEventElapsedTime(&elapsedTime, start, stop));
 	printf("Calculate svd time: %f ms\n", elapsedTime);
 
 	checkCudaErrors(cudaEventDestroy(start));
 	checkCudaErrors(cudaEventDestroy(stop));
+	*/
 
 	//checkCudaErrors(cudaDeviceReset());
 	return;
