@@ -59,7 +59,7 @@ int main(int argc, char * argv[] ){
 	int n = atoi(argv[2]);
 	int mn = m*n;
 	char filename[80];
-	sprintf(filename, "%dx%d.bin", m, n);
+	sprintf(filename, "/home/pteodors/matlab_pca/%dx%d.bin", m, n);
 	
 	float* A = (float*) malloc(sizeof(float)*mn);
 	FILE * pA;

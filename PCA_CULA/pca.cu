@@ -106,9 +106,10 @@ __global__ void sign_convention2(nifti_data_type *intmed_results, int rows, int 
 
 	int r = Ash[0] >= 0;
 	int sign = (r == 0)*(-1) + (r > 0);
+	/*
 	if (tid == 0 && blockIdx.x < cols){
 		maxFindResults_d[blockIdx.x] = sign;
-	}
+	}*/
 
 	if (blockIdx.x < cols){
 		int iter = deviceGetRound(m_coeff, blockDim.x) / blockDim.x; // m / d³ugoœæ bloku
@@ -266,7 +267,7 @@ __global__ void center_data_shuffle(nifti_data_type * A, int m, int n, int iter,
 				A[globalDataIndex] -= mean;
 			}
 			if (tid == 0 ){
-				MU[columnIndex] = mean;
+				//MU[columnIndex] = mean;
 			}
 		}
 	}
@@ -358,7 +359,7 @@ void runPCA(nifti_data_type * A, int m, int n, int ncomponents, nifti_data_type*
 	checkCudaErrors(cudaMalloc(&AT_dev, m*n*sizeof(nifti_data_type))); // array AT for transpose matrix
 	//checkCudaErrors(cudaMalloc(&MU_dev, m*sizeof(nifti_data_type))); // an array only for checking the results, need to be removed in final version
 		
-	S = (nifti_data_type*) malloc(min * sizeof(nifti_data_type));
+	//S = (nifti_data_type*) malloc(min * sizeof(nifti_data_type));
 	checkCudaErrors(cudaMalloc(&S_dev, min * sizeof(nifti_data_type)));
 
 	if (jobu != 'O' && jobu != 'N'){
@@ -372,11 +373,6 @@ void runPCA(nifti_data_type * A, int m, int n, int ncomponents, nifti_data_type*
 
 	checkCudaErrors(cudaMemcpy(A_dev, A, m*n*sizeof(nifti_data_type), cudaMemcpyHostToDevice));
 
-	// transpose matrix for function to centring the data
-	status = culaDeviceSgeTranspose(m, n, A_dev, m, AT_dev, n);
-    checkStatus(status);
-
-	
 	// ---------- centring the data -----------------------
 	//int threadsPerBlock = 128;
 	int threadsPerBlock = getRound(min, 32);
@@ -389,6 +385,9 @@ void runPCA(nifti_data_type * A, int m, int n, int ncomponents, nifti_data_type*
 	int iter = getRound(m, numBlocks) / numBlocks;
 	//printf("shared mem size %d, iter %d\n", shared_mem_size, iter);
 
+	// transpose matrix for function to centring the data
+	status = culaDeviceSgeTranspose(m, n, A_dev, m, AT_dev, n);
+    checkStatus(status);
 	
 	center_data<<<numBlocks, threadsPerBlock, shared_mem_size>>>(AT_dev, n, m, iter, MU_dev);
 	checkCudaErrors(cudaDeviceSynchronize()); checkCudaErrors(cudaGetLastError());
@@ -424,9 +423,9 @@ void runPCA(nifti_data_type * A, int m, int n, int ncomponents, nifti_data_type*
 	checkCudaErrors(cudaGetLastError());
 
 	// ------------------- run second kernel ----------------------------------------------------
-	nifti_data_type* maxFindResults = (nifti_data_type*) malloc(ncomponents*sizeof(nifti_data_type));
+	//nifti_data_type* maxFindResults = (nifti_data_type*) malloc(ncomponents*sizeof(nifti_data_type));
 	nifti_data_type* maxFindResults_d;
-	checkCudaErrors(cudaMalloc(&maxFindResults_d, ncomponents*sizeof(nifti_data_type)));
+	//checkCudaErrors(cudaMalloc(&maxFindResults_d, ncomponents*sizeof(nifti_data_type)));
 
 	dim3 grid2(grid_x, 1);
 	shared_mem_size = blocks_per_column*sizeof(nifti_data_type);
@@ -443,12 +442,12 @@ void runPCA(nifti_data_type * A, int m, int n, int ncomponents, nifti_data_type*
 	checkCudaErrors(cudaGetLastError());
 
 	//checkCudaErrors(cudaMemcpy(maxFindResults, maxFindResults_d, ncomponents*sizeof(nifti_data_type), cudaMemcpyDeviceToHost));
-	checkCudaErrors(cudaFree(maxFindResults_d));
+	//checkCudaErrors(cudaFree(maxFindResults_d));
 	//print_matrix_data(maxFindResults, ncomponents, 0, 0, 1, "max_results.txt");
-	free(maxFindResults);
+	//free(maxFindResults);
 
 	// free memory
-	free(S);
+	//free(S);
 	//free(coeff);
 	checkCudaErrors(cudaFree(intermediate_results));
 	checkCudaErrors(cudaFree(A_dev));
@@ -465,8 +464,8 @@ void runPCA(nifti_data_type * A, int m, int n, int ncomponents, nifti_data_type*
 		checkCudaErrors(cudaFree(VT_dev));
 	}
 
-	checkCudaErrors(cudaEventDestroy(start));
-	checkCudaErrors(cudaEventDestroy(stop));
+	//checkCudaErrors(cudaEventDestroy(start));
+	//checkCudaErrors(cudaEventDestroy(stop));
 
 	//checkCudaErrors(cudaDeviceReset());
 	return;
